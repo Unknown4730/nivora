@@ -1,1 +1,5 @@
-"""AURA-Med Python packages."""
+"""AURA-Med backend packages."""
+
+__version__ = "0.2.0"
+
+__all__ = ["__version__"]

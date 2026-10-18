@@ -1,0 +1,15 @@
+[project]
+name = "aura-med-backend"
+version = "0.2.0"
+description = "Deterministic research backend for physiological signal reliability experiments"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn==0.34.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
+addopts = "-q"

@@ -1,0 +1,2 @@
+# Install the exact project dependency set from the committed lock file.
+-r requirements.lock

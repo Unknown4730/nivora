@@ -18,6 +18,11 @@ sample-rate interval correctness issue before frontend migration.
   README setup/run/test/deploy instructions, and a single backend test command.
 - Frontend code is not executed or migrated in this phase.
 
+Frontend-specific findings from the previous audit, including the old browser
+prototype's reset and comparison-view issues, are intentionally deferred until
+the React/Tailwind client is requested. The archived JavaScript files are not
+part of the active backend runtime.
+
 ## Verification record
 
 The domain migration was verified with:

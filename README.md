@@ -72,6 +72,7 @@ legacy/
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --requirement requirements.lock
+.\.venv\Scripts\Activate.ps1
 ```
 
 ### Linux/macOS
@@ -79,6 +80,7 @@ py -3.12 -m venv .venv
 ```bash
 python3.12 -m venv .venv
 .venv/bin/python -m pip install --requirement requirements.lock
+source .venv/bin/activate
 ```
 
 The lock file is `requirements.lock`. `requirements.txt` points to it for

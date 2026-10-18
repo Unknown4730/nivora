@@ -51,9 +51,15 @@ def _finite_number(value: Any) -> bool:
 
 
 def _positive_integer(value: Any, label: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+    if (
+        not isinstance(value, (int, float))
+        or isinstance(value, bool)
+        or not math.isfinite(value)
+        or value <= 0
+        or int(value) != value
+    ):
         raise ValueError(f"{label} must be a positive integer")
-    return value
+    return int(value)
 
 
 def normalize_config(input_config: RunConfig | Mapping[str, Any] | None = None) -> RunConfig:

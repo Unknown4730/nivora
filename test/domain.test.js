@@ -96,6 +96,7 @@ test('multi-sensor dropout is insufficient evidence, never silently nominal', ()
   const outputs = run.results[0].outputs;
   assert.ok(outputs.some((output) => output.classification === 'INSUFFICIENT_EVIDENCE'));
   for (const output of outputs.filter((item) => item.classification === 'INSUFFICIENT_EVIDENCE')) assert.ok(output.reasonCodes.includes('EVIDENCE_INSUFFICIENT'));
+  assert.ok(outputs.filter((output) => output.startSec >= 42 && output.startSec < 60).every((output) => output.classification !== 'NOMINAL'));
 });
 
 test('benchmark matching counts alerts, nuisance alerts, missed events, latency, and uncertainty', () => {

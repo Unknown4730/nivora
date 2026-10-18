@@ -88,10 +88,16 @@ export function createReliabilityAwareAlgorithm(options = {}) {
       if (input.unavailableChannels.length >= 2 || input.contradictoryEvidence) {
         return outputFor(input, this.id, 'INSUFFICIENT_EVIDENCE', [...new Set([...reasons, 'EVIDENCE_INSUFFICIENT'])], channels);
       }
-      if (!channels.length) return outputFor(input, this.id, 'NOMINAL', reasons, []);
       const lowQuality = qualityMean(input) < 0.62;
       const lowTrust = trustMean(input) < minimumTrust;
       const artifact = input.quality.some((item) => item.features.artifactOverlap > 0.2);
+      if (!channels.length) {
+        if (input.unavailableChannels.length || artifact || lowQuality || lowTrust) {
+          const state = artifact ? 'ARTIFACT_CONSISTENT_ANOMALY' : input.unavailableChannels.length >= 1 ? 'INSUFFICIENT_EVIDENCE' : 'LOW_CONFIDENCE_CHANGE';
+          return outputFor(input, this.id, state, [...new Set([...reasons, 'EVIDENCE_INSUFFICIENT'])], []);
+        }
+        return outputFor(input, this.id, 'NOMINAL', reasons, []);
+      }
       if (artifact || lowQuality || lowTrust) {
         return outputFor(input, this.id, artifact ? 'ARTIFACT_CONSISTENT_ANOMALY' : 'LOW_CONFIDENCE_CHANGE', reasons, channels);
       }

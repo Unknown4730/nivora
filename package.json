@@ -6,7 +6,8 @@
   "type": "module",
   "engines": { "node": ">=20 <21" },
   "scripts": {
-    "test": "node --check app.js && node --test test/domain.test.js",
-    "build": "node --check app.js && node --check server.mjs && node --test test/domain.test.js"
+    "test": "node --check app.js && node --test test/domain.test.js test/frontend.test.js",
+    "build": "node --check app.js && node --check server.mjs && node --test test/domain.test.js test/frontend.test.js",
+    "start": "node server.mjs"
   }
 }

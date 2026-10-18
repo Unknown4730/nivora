@@ -10,10 +10,10 @@ Requirements: Python 3 or Node 20 (pinned in `.nvmrc`). No API keys, backend, da
 npm ci                 # no external runtime dependencies
 make test              # deterministic domain tests
 make build             # syntax and production-readiness check
-make serve
+npm start              # dependency-free local static server
 ```
 
-Open http://localhost:8080. Configure a scenario and press **Run simulation** to inspect simulated SpO₂, heart rate, and respiration traces, signal quality, dynamic trust, cross-signal agreement, uncertainty windows, and a baseline-vs-reliability-aware benchmark snapshot.
+Open http://localhost:8080. Configure a scenario and press **Start simulation** to inspect simulated SpO₂, heart rate, and respiration traces, signal quality, dynamic trust, cross-signal agreement, uncertainty windows, event/artifact annotations, and a baseline-vs-reliability-aware benchmark snapshot. Playback, pause, reset, algorithm view, duration, and artifact intensity are all local browser interactions.
 
 ## Docker
 
@@ -52,4 +52,4 @@ The weights are not clinically validated. Sensor trust uses a faster bounded dec
 
 The frontend can import `createSimulationRun` from `src/domain/pipeline.js` (or the re-export in `src/domain/index.js`) and render the returned `SimulationRun`. It should not recalculate quality, trust, algorithm states, benchmark metrics, or explanations. `src/domain/contracts.ts` is the shared TypeScript contract and is kept separate from the browser-loadable JavaScript modules.
 
-The current static shell still has a legacy rendering adapter in `app.js`; wiring its chart and controls to `SimulationRun` remains frontend integration work. No server, API key, cloud AI provider, real patient data, or proprietary device integration is required.
+`app.js` is a thin browser renderer and imports `createSimulationRun` from the domain pipeline as an ES module. The renderer reads the returned `SimulationRun` data without duplicating quality, trust, classification, or benchmark calculations. No cloud AI provider, API key, real patient data, or proprietary device integration is required.

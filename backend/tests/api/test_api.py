@@ -3,13 +3,56 @@ from __future__ import annotations
 import pathlib
 import sys
 import unittest
+from copy import deepcopy
+from unittest.mock import patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from aura_med.api.main import app  # noqa: E402
-from aura_med.api.routes import run_store  # noqa: E402
+from aura_med.api.routes import experiment_store, run_store  # noqa: E402
+
+
+class FakeExperimentBatch:
+    """Small test double for the engine's required batch interface."""
+
+    def __init__(self, spec: dict[str, object]) -> None:
+        suite_id = spec["suite_id"]
+        scenarios = spec["scenarios"]
+        seeds = spec["seeds"]
+        algorithms = spec["algorithms"]
+        self.experiment_id = f"EXP-{suite_id}-001"
+        self._payload = {
+            "schemaVersion": "1.0",
+            "experimentId": self.experiment_id,
+            "suiteId": suite_id,
+            "scenarios": scenarios,
+            "seeds": seeds,
+            "algorithms": algorithms,
+            "runs": [
+                {"scenario": scenario, "seed": seed, "algorithmIds": algorithms}
+                for scenario in scenarios
+                for seed in seeds
+            ],
+            "manifest": {
+                "schemaVersion": "1.0",
+                "experimentId": self.experiment_id,
+                "suiteId": suite_id,
+                "scenarios": scenarios,
+                "seeds": seeds,
+                "algorithms": algorithms,
+            },
+        }
+
+    def to_dict(self) -> dict[str, object]:
+        return deepcopy(self._payload)
+
+
+def fake_run_experiment_batch(spec: dict[str, object]) -> FakeExperimentBatch:
+    if "unknown" in spec["algorithms"] or "unknown" in spec["scenarios"]:
+        raise ValueError("Unknown experiment selection")
+    return FakeExperimentBatch(spec)
 
 
 class ApiTests(unittest.TestCase):
@@ -19,6 +62,7 @@ class ApiTests(unittest.TestCase):
 
     def setUp(self) -> None:
         run_store.clear()
+        experiment_store.clear()
 
     def test_health_and_service_info(self) -> None:
         health = self.client.get("/health")
@@ -41,6 +85,86 @@ class ApiTests(unittest.TestCase):
                 "gradual-deterioration",
                 "multi-sensor-dropout",
             },
+        )
+
+    def test_algorithm_metadata_is_versioned(self) -> None:
+        catalog = [
+            {
+                "id": "threshold-baseline",
+                "name": "Threshold baseline",
+                "version": "1.0.0",
+            },
+            {
+                "id": "reliability-aware",
+                "name": "Reliability-aware comparison arm",
+                "version": "1.0.0",
+            },
+        ]
+        with patch("aura_med.api.routes.ALGORITHM_CATALOG", catalog):
+            response = self.client.get("/api/v1/algorithms")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"schemaVersion": "1.0", "algorithms": catalog})
+
+    def test_create_read_and_manifest_for_multi_run_experiment(self) -> None:
+        request = {
+            "suite_id": "phase-1",
+            "scenarios": ["stable-baseline", "motion-artifact"],
+            "seeds": [11, 22],
+            "base_config": {"durationSec": 4, "sampleRateHz": 2},
+            "algorithms": ["threshold-baseline", "reliability-aware"],
+        }
+        with patch(
+            "aura_med.api.routes.run_experiment_batch",
+            side_effect=fake_run_experiment_batch,
+        ):
+            created = self.client.post("/api/v1/experiments", json=request)
+            self.assertEqual(created.status_code, 201)
+            batch = created.json()
+            experiment_id = batch["experimentId"]
+
+            fetched = self.client.get(f"/api/v1/experiments/{experiment_id}")
+            manifest = self.client.get(f"/api/v1/experiments/{experiment_id}/manifest")
+
+        self.assertEqual(fetched.status_code, 200)
+        self.assertEqual(fetched.json(), batch)
+        self.assertEqual(manifest.status_code, 200)
+        self.assertEqual(manifest.json(), batch["manifest"])
+        self.assertEqual(len(batch["runs"]), 4)
+
+    def test_experiment_transport_and_engine_validation_are_422(self) -> None:
+        empty = self.client.post(
+            "/api/v1/experiments",
+            json={
+                "suite_id": "phase-1",
+                "scenarios": [],
+                "seeds": [11],
+                "base_config": {},
+                "algorithms": ["threshold-baseline"],
+            },
+        )
+        self.assertEqual(empty.status_code, 422)
+
+        with patch(
+            "aura_med.api.routes.run_experiment_batch",
+            side_effect=fake_run_experiment_batch,
+        ):
+            unknown = self.client.post(
+                "/api/v1/experiments",
+                json={
+                    "suite_id": "phase-1",
+                    "scenarios": ["unknown"],
+                    "seeds": [11],
+                    "base_config": {},
+                    "algorithms": ["threshold-baseline"],
+                },
+            )
+        self.assertEqual(unknown.status_code, 422)
+
+    def test_unknown_experiment_is_explicit(self) -> None:
+        self.assertEqual(self.client.get("/api/v1/experiments/EXP-missing").status_code, 404)
+        self.assertEqual(
+            self.client.get("/api/v1/experiments/EXP-missing/manifest").status_code,
+            404,
         )
 
     def test_create_read_and_export_run(self) -> None:

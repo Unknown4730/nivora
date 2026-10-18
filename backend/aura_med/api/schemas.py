@@ -6,9 +6,9 @@ are the boundary that turns untrusted JSON into a validated domain config.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 
 AlgorithmId = Literal["threshold-baseline", "reliability-aware"]
@@ -38,6 +38,35 @@ class SimulationRequest(BaseModel):
 
     def to_domain_config(self) -> dict[str, object]:
         """Return the normalized snake_case shape expected by the domain."""
+
+        return self.model_dump()
+
+
+NonEmptyString = Annotated[StrictStr, Field(min_length=1)]
+
+
+class ExperimentRequest(BaseModel):
+    """Transport-level request for one deterministic experiment batch.
+
+    The experiment engine owns semantic validation (for example, whether a
+    scenario or algorithm exists).  This model only validates the shape that
+    can cross the HTTP boundary and rejects accidental extra fields.
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+        strict=True,
+    )
+
+    suite_id: NonEmptyString = Field(alias="suiteId")
+    scenarios: list[NonEmptyString] = Field(min_length=1)
+    seeds: list[StrictInt] = Field(min_length=1)
+    base_config: dict[str, Any] = Field(default_factory=dict, alias="baseConfig")
+    algorithms: list[NonEmptyString] = Field(min_length=1)
+
+    def to_engine_spec(self) -> dict[str, Any]:
+        """Return the stable snake_case mapping consumed by the engine."""
 
         return self.model_dump()
 

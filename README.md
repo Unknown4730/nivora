@@ -7,7 +7,9 @@ AURA-Med Lab is an open-source, browser-based research prototype for exploring r
 Requirements: Python 3 or Node 20 (pinned in `.nvmrc`). No API keys, backend, database, GPU, or cloud service is required.
 
 ```bash
-make test
+npm ci                 # no external runtime dependencies
+make test              # deterministic domain tests
+make build             # syntax and production-readiness check
 make serve
 ```
 
@@ -21,3 +23,33 @@ docker run --rm -p 8080:8080 aura-med-lab
 ```
 
 The simulation uses browser-local generated data and makes no clinical claims.
+
+## Domain engine
+
+The deterministic, UI-independent processing layer lives in `src/domain/`:
+
+1. `pipeline.js` accepts a `RunConfig` and returns one complete `SimulationRun`.
+2. `scenarios.js` defines six named scenarios and their simulated ground-truth annotations.
+3. `generator.js` creates seeded SpO₂, heart-rate, and respiration samples, including noise, clipping, motion artifacts, missing values, disconnection, simulated changes, and recovery.
+4. `quality.js`, `trust.js`, and `baseline.js` calculate transparent bounded evidence values.
+5. `algorithms.js` exposes the threshold baseline and reliability-aware `AlarmAlgorithm` implementations.
+6. `benchmark.js`, `explanations.js`, and `export.js` provide simulation metrics, structured reason codes, deterministic explanations, and JSON/CSV serialization.
+
+The quality formula is an intentionally non-clinical simulation heuristic:
+
+```text
+score = 0.20 stability
+      + 0.15 plausibility
+      + 0.15 continuity
+      + 0.20 (1 - missing fraction)
+      + 0.20 (1 - artifact overlap)
+      + 0.10 cross-sensor consistency
+```
+
+The weights are not clinically validated. Sensor trust uses a faster bounded decay rate and slower recovery rate, so one clean sample cannot immediately restore trust. Time intervals use the half-open convention `[startSec, endSec)`.
+
+### Frontend contract
+
+The frontend can import `createSimulationRun` from `src/domain/pipeline.js` (or the re-export in `src/domain/index.js`) and render the returned `SimulationRun`. It should not recalculate quality, trust, algorithm states, benchmark metrics, or explanations. `src/domain/contracts.ts` is the shared TypeScript contract and is kept separate from the browser-loadable JavaScript modules.
+
+The current static shell still has a legacy rendering adapter in `app.js`; wiring its chart and controls to `SimulationRun` remains frontend integration work. No server, API key, cloud AI provider, real patient data, or proprietary device integration is required.

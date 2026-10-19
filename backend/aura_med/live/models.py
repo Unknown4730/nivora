@@ -68,7 +68,7 @@ class FaultSpec(BaseModel):
     evaluated against a seeded PRNG.
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid", strict=True)
 
     type: str
     at_samples: list[int] = Field(default_factory=list, alias="atSamples")
@@ -228,7 +228,7 @@ FailureTaxonomy = FailureType
 class LiveEvent(BaseModel):
     """Subscriber event envelope persisted in the event ledger."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid", strict=True)
 
     event_id: str = Field(alias="eventId", min_length=1)
     session_id: str = Field(alias="sessionId", min_length=1)

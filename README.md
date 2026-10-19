@@ -18,6 +18,8 @@ The backend currently provides:
 - explicit missing-data and insufficient-evidence states;
 - simulated benchmark metrics and structured explanations;
 - stable JSON, CSV, and manifest exports;
+- deterministic Phase 1 batch experiments across scenario × seed matrices;
+- aggregate metrics with explicit denominators and confidence intervals;
 - a FastAPI API under `/api/v1`;
 - reproducible run IDs based on configuration, annotations, and seed.
 
@@ -140,6 +142,10 @@ The API is available at `http://127.0.0.1:8000`.
 - Run manifest: `GET /api/v1/simulations/{run_id}/manifest`
 - Samples CSV: `GET /api/v1/simulations/{run_id}/samples.csv`
 - Full JSON export: `GET /api/v1/simulations/{run_id}/run.json`
+- Algorithm catalog: `GET /api/v1/algorithms`
+- Create experiment: `POST /api/v1/experiments`
+- Read experiment: `GET /api/v1/experiments/{experiment_id}`
+- Experiment manifest: `GET /api/v1/experiments/{experiment_id}/manifest`
 
 The run store is process-local and bounded to 128 runs. It is deliberately not
 described as durable persistence. A future persistence layer should be added
@@ -164,6 +170,38 @@ curl -X POST http://127.0.0.1:8000/api/v1/simulations \
 The response is a complete deterministic `SimulationRun` in the original
 camelCase JSON vocabulary, so the future React client can consume the backend
 without duplicating domain calculations.
+
+## Batch experiments
+
+Phase 1 supports bounded, deterministic experiment suites. A suite executes the
+Cartesian product of the requested scenarios and seeds, in the order supplied
+by the caller:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/experiments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "suiteId": "artifact-sensitivity-v1",
+    "scenarios": ["stable-baseline", "motion-artifact", "multi-sensor-dropout"],
+    "seeds": [7, 11, 19],
+    "baseConfig": {
+      "durationSec": 60,
+      "sampleRateHz": 1,
+      "artifactIntensity": 0.48
+    },
+    "algorithms": ["threshold-baseline", "reliability-aware"]
+  }'
+```
+
+The response contains compact run receipts, algorithm summaries, and a
+reproducibility manifest. Aggregate scalar metrics include denominators and
+95% intervals. Detection rate uses a Wilson interval; run-level scalar metrics
+use a normal approximation with `1.96` and sample standard deviation. Empty
+truth-event or detected-latency populations are represented as `null`.
+
+Each batch is limited to 100 scenario × seed runs. The engine always delegates
+signal processing and per-run benchmark calculations to the existing domain
+pipeline; it does not maintain a second implementation of those rules.
 
 ## Docker
 
@@ -223,7 +261,7 @@ ingestion layer, provenance, de-identification, risk management, cybersecurity,
 external validation, usability evaluation, and an intended-use/regulatory
 assessment. Those are explicitly outside this backend-first phase.
 
-## Phase 0 status
+## Project status
 
 Completed in this phase:
 
@@ -236,12 +274,15 @@ Completed in this phase:
 - moved the old browser prototype to `legacy/js-prototype/`;
 - pinned Python dependencies and added a Python Docker runtime;
 - added domain and API tests without executing frontend work.
+- added Phase 1 multi-scenario/multi-seed experiment execution and aggregate
+  benchmark summaries.
 
-Known limits remaining after Phase 0:
+Known limits:
 
 - no durable database or authentication;
 - no public dataset or real-device adapter;
 - no CI service or automated Docker build in this environment;
 - no React/Tailwind frontend yet, by request;
+- experiment results are process-local and not durable;
 - cross-signal agreement remains an availability-and-change heuristic and must
   not be presented as validated sensor agreement.

@@ -164,7 +164,7 @@ def create_experiment(request: ExperimentRequest) -> JSONResponse:
         experiment_store.put(batch)
     except HTTPException:
         raise
-    except Exception as error:
+    except (TypeError, ValueError) as error:
         # The engine owns semantic validation.  Its validation failures must
         # remain client errors at this HTTP boundary rather than becoming 500s.
         raise HTTPException(

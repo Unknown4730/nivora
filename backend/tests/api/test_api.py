@@ -131,6 +131,31 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(manifest.json(), batch["manifest"])
         self.assertEqual(len(batch["runs"]), 4)
 
+    def test_real_engine_creates_deterministic_multi_run_batch(self) -> None:
+        # Keep the fake-boundary test above independent, but also verify that
+        # the registered FastAPI route reaches the actual Phase 1 engine.
+        import aura_med.api.routes as routes
+
+        request = {
+            "suiteId": "phase-1-real-engine",
+            "scenarios": ["stable-baseline", "simulated-event"],
+            "seeds": [7, 11],
+            "baseConfig": {"durationSec": 20, "sampleRateHz": 1},
+            "algorithms": ["reliability-aware"],
+        }
+        with patch.object(routes, "run_experiment_batch", None):
+            first = self.client.post("/api/v1/experiments", json=request)
+            second = self.client.post("/api/v1/experiments", json=request)
+
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 201)
+        first_payload = first.json()
+        self.assertEqual(first_payload, second.json())
+        self.assertEqual(len(first_payload["runReceipts"]), 4)
+        self.assertEqual(
+            list(first_payload["algorithmSummaries"]), ["reliability-aware"]
+        )
+
     def test_experiment_transport_and_engine_validation_are_422(self) -> None:
         empty = self.client.post(
             "/api/v1/experiments",

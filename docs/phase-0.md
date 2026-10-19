@@ -47,3 +47,12 @@ PYTHONPATH=backend python -m unittest discover -s backend/tests -p "test_*.py"
 - durable persistence
 - authentication and organization management
 - clinical validation or regulatory claims
+
+## Phase 1 handoff
+
+Phase 1 adds a deterministic experiment engine under
+`backend/aura_med/experiments`. It runs the existing domain pipeline over a
+bounded scenario-by-seed matrix, collects compact run receipts, aggregates
+algorithm metrics with explicit denominators, and emits reproducibility
+manifests. FastAPI exposes this through `/api/v1/algorithms` and
+`/api/v1/experiments`. The frontend remains intentionally deferred.

@@ -11,6 +11,21 @@ HTTP JSON
   -> JSON / CSV / manifest exports
 ```
 
+Batch research execution uses a separate orchestration boundary:
+
+```text
+ExperimentSpec
+  -> ordered scenario × seed matrix
+  -> create_simulation_run for every matrix cell
+  -> compact run receipts
+  -> algorithm aggregate summaries
+  -> reproducibility manifest
+```
+
+The experiment layer owns suite validation and statistics only. It does not
+reimplement signal generation, algorithm classification, or per-run benchmark
+matching.
+
 The domain package has no FastAPI dependency. It can be called from HTTP,
 batch experiments, a worker process, or a future CLI without changing its
 processing rules.

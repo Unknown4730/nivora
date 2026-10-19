@@ -249,7 +249,7 @@ function Chart({ samples, durationSec }) {
           <svg className="block h-auto w-full" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Simulated research traces for SpO₂, heart rate, and respiration. Gaps indicate missing values.">
             {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
               const y = pad.top + fraction * innerHeight;
-              return <line key={fraction} x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="#dce9e4" strokeWidth="1" />;
+              return <line key={fraction} x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="#285049" strokeWidth="1" />;
             })}
             {CHANNEL_IDS.map((channel) => (
               <path key={channel} d={pathFor(channel)} fill="none" stroke={CHANNELS[channel].color} strokeDasharray={dashPatterns[channel]} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
@@ -728,8 +728,8 @@ export default function App() {
   const displayDuration = Number(session?.durationSec ?? config.durationSec) || 1;
 
   return (
-    <div className="min-h-screen bg-[#f5f9f7] text-ink">
-      <header className="border-b border-line bg-white/95">
+    <div className="dark-shell min-h-screen bg-[#081412] text-ink">
+      <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-5 py-4 lg:px-8">
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 font-semibold text-white shadow-sm" aria-hidden="true">A</span>

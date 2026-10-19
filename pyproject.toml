@@ -2,7 +2,7 @@
 name = "aura-med-backend"
 version = "0.2.0"
 description = "Deterministic research backend for physiological signal reliability experiments"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12.10,<3.13"
 readme = "README.md"
 dependencies = [
   "fastapi==0.115.6",

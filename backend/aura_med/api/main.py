@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .routes import router
 from .live_routes import router as live_router
@@ -42,6 +44,10 @@ app.add_middleware(
 )
 app.include_router(router)
 app.include_router(live_router)
+
+_frontend_dir = os.getenv("AURA_MED_FRONTEND_DIR")
+if _frontend_dir and Path(_frontend_dir).is_dir():
+    app.mount("/app", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
 
 
 @app.get("/", response_model=ServiceInfo, tags=["service"])

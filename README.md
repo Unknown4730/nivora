@@ -1,4 +1,4 @@
-# AURA-Med Signal Reliability Backend
+# AURA-Med Signal Reliability Workbench
 
 AURA-Med is a local-first research and algorithm-validation workbench for
 reliability-aware interpretation of noisy physiological time-series data.
@@ -76,7 +76,11 @@ legacy/
 
 ## Requirements
 
-- Python 3.12, pinned by `.python-version` and `pyproject.toml`.
+- Python `3.12.10`, pinned by `.python-version`, `pyproject.toml`, and the
+  Docker image.
+- Node.js 22.14.x and npm 10 or newer, pinned by `frontend/.nvmrc` and
+  `frontend/package.json`.
+- GNU Make and Docker for the corresponding helper commands.
 - A project-local virtual environment.
 - Network access only during dependency installation, unless the pinned wheels
   are already available in a local package cache.
@@ -95,27 +99,51 @@ py -3.12 -m venv .venv
 ### Linux/macOS
 
 ```bash
+git clone <repository-url> aura-med
+cd aura-med
 python3.12 -m venv .venv
 .venv/bin/python -m pip install --requirement requirements.lock
-source .venv/bin/activate
+npm --prefix frontend ci
 ```
 
-The lock file is `requirements.lock`. `requirements.txt` points to it for
+Or, after installing Python 3.12.10, Node.js 22.14.x, npm, and GNU Make:
+
+```bash
+make install
+```
+
+The Python lock file is `requirements.lock`; the frontend lock file is
+`frontend/package-lock.json`. `requirements.txt` points to the Python lock for
 tools that expect the conventional filename. Dependencies must stay inside
-`.venv`; do not install them globally.
+`.venv` or `frontend/node_modules`; do not install them globally.
+
+The root `.env.example` contains local CORS, data-directory, and port settings.
+The application reads environment variables supplied by the shell; it does not
+load a `.env` file implicitly. To use the example locally:
+
+```bash
+cp .env.example .env
+set -a
+. ./.env
+set +a
+```
 
 ## Test
 
-The single reproducible backend test command is:
-
-```bash
-PYTHONPATH=backend python -m unittest discover -s backend/tests -p "test_*.py"
-```
-
-With the virtual environment active, use the project helper on Linux/macOS:
+The single project test command is:
 
 ```bash
 make test
+```
+
+`make test` runs both the backend unittest suite and the frontend Vitest suite.
+It is offline after the setup dependencies have been installed.
+
+To run the two suites separately:
+
+```bash
+PYTHONPATH=backend .venv/bin/python -m unittest discover -s backend/tests -p "test_*.py"
+npm --prefix frontend test
 ```
 
 On Windows PowerShell, use:
@@ -133,7 +161,7 @@ Phase 2 also covers live session lifecycle, virtual fault injection, failure
 forensics, SQLite persistence, replay equivalence, export bundles, WebSocket
 delivery, and bounded stream stress testing.
 
-## Run the API
+## Run locally
 
 From the repository root:
 
@@ -147,11 +175,27 @@ python -m uvicorn aura_med.api.main:app --host 127.0.0.1 --port 8000
 ### Linux/macOS
 
 ```bash
-PYTHONPATH=backend python -m uvicorn aura_med.api.main:app \
-  --host 127.0.0.1 --port 8000
+make serve
 ```
 
-The API is available at `http://127.0.0.1:8000`.
+In a second terminal, start the development frontend:
+
+```bash
+npm --prefix frontend run dev
+```
+
+The API is available at `http://127.0.0.1:8000`. The frontend is available at
+`http://localhost:5173`; Vite proxies API and WebSocket traffic to the API.
+
+For a production frontend bundle:
+
+```bash
+npm --prefix frontend run build
+npm --prefix frontend run preview
+```
+
+The frontend preview expects the API at `http://127.0.0.1:8000` unless
+`frontend/.env.local` sets `VITE_API_BASE_URL`.
 
 - OpenAPI UI: `http://127.0.0.1:8000/docs`
 - Health: `GET /health`
@@ -227,24 +271,30 @@ pipeline; it does not maintain a second implementation of those rules.
 ## Docker
 
 ```bash
-docker build -t aura-med-backend .
-docker run --rm -p 8000:8000 aura-med-backend
+docker build --tag aura-med:local .
+docker volume create aura-med-data
+docker run --rm --publish 8000:8000 \
+  --volume aura-med-data:/app/.runtime \
+  aura-med:local
 ```
 
-The image installs only the pinned Python dependencies, copies the backend, and
-starts Uvicorn. It does not install Node, download code at startup, or require
-an external service.
+The multi-stage image installs the pinned Python and Node dependencies, builds
+the React frontend, and starts Uvicorn as a non-root user. The API remains at
+`/health` and `/docs`; the built frontend is served at
+`http://localhost:8000/app/`. The named volume preserves the SQLite WAL data
+between container restarts. No secrets are required.
 
-The frontend is run separately during this phase:
+To rebuild and run the same image through Make:
 
 ```bash
-cd frontend
-npm ci
-npm run dev
+make docker-build
+make docker-run
 ```
 
-Open `http://localhost:5173`. Vite proxies `/api` and WebSocket traffic to the
-backend at `http://127.0.0.1:8000`.
+For a deployment, build the image in a clean Linux or CI environment, push it
+to the deployment registry, and run it with a persistent volume mounted at
+`/app/.runtime`. Route WebSocket connections under `/api/v1/live/` without
+buffering or HTTP-only restrictions. The image listens on port 8000.
 
 ## Domain contract
 

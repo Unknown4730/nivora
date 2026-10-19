@@ -123,6 +123,17 @@ class LiveTests(unittest.TestCase):
             for required in ("manifest.json", "session-report.md", "session-report.json", "session-metadata.json", "normalized-samples.csv", "failure-events.csv", "failure-events.json", "quality-events.json", "algorithm-events.json", "checksums.json"):
                 self.assertIn(required, names)
 
+    def test_natural_source_completion_finalizes_session(self) -> None:
+        manager = SessionManager(SQLiteRecorder(data_dir=pathlib.Path(tempfile.mkdtemp())))
+        manager.create_session(session_id="natural-stop", duration_sec=1, sample_rate_hz=2, no_wait=True)
+
+        async def flow() -> None:
+            await manager.start("natural-stop")
+
+        asyncio.run(flow())
+        self.assertEqual(manager.get_session("natural-stop")["state"], "stopped")
+        self.assertIn("summary", manager.get_report("natural-stop"))
+
     def test_api_live_endpoints_and_websocket(self) -> None:
         client = TestClient(app)
         session_id = f"api-live-{uuid.uuid4().hex[:8]}"

@@ -206,6 +206,8 @@ class SessionManager:
         session.worker_task = asyncio.create_task(consume())
         try:
             await asyncio.gather(session.producer_task, session.worker_task)
+            if session.source_complete and not session.stop_requested and session.state != SessionState.FAILED:
+                await self._finalize_stopped(session)
         except asyncio.CancelledError:
             session.source.cancel()
             raise
@@ -357,6 +359,21 @@ class SessionManager:
         else:
             put()
 
+    async def _finalize_stopped(self, session: _LiveSession) -> None:
+        if session.state == SessionState.STOPPED:
+            return
+        session.state = SessionState.STOPPED
+        session.metadata["state"] = session.state.value
+        session.metadata["stoppedTimestamp"] = time.time()
+        metrics = self._metrics(session)
+        self.recorder.update_session(session.session_id, session.metadata)
+        report = self._report_payload(session, metrics)
+        for flag in report["reviewFlags"]:
+            self.recorder.record_review_flag(session.session_id, flag, {"state": session.state.value})
+        self.recorder.record_summary(session.session_id, report)
+        await self._publish(session, "status", {"state": session.state.value, "metrics": metrics})
+        session.subscribers.clear()
+
     async def stop(self, session_id: str) -> dict[str, Any]:
         session = self._session(session_id)
         if session.state == SessionState.STOPPED:
@@ -371,17 +388,7 @@ class SessionManager:
             except asyncio.CancelledError:
                 pass
         session.run_task = None
-        session.state = SessionState.STOPPED
-        session.metadata["state"] = session.state.value
-        session.metadata["stoppedTimestamp"] = time.time()
-        metrics = self._metrics(session)
-        self.recorder.update_session(session_id, session.metadata)
-        report = self._report_payload(session, metrics)
-        for flag in report["reviewFlags"]:
-            self.recorder.record_review_flag(session_id, flag, {"state": session.state.value})
-        self.recorder.record_summary(session_id, report)
-        await self._publish(session, "status", {"state": session.state.value, "metrics": metrics})
-        session.subscribers.clear()
+        await self._finalize_stopped(session)
         return self.get_session(session_id)
 
     def inject_fault(self, session_id: str, fault: FaultSpec | dict[str, Any] | str) -> dict[str, Any]:

@@ -10,6 +10,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
+from ..live.models import FaultSpec
+
 
 AlgorithmId = Literal["threshold-baseline", "reliability-aware"]
 
@@ -83,3 +85,26 @@ class ScenarioListResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+
+class LiveSessionRequest(BaseModel):
+    """Validated configuration for a virtual/replay live session."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    session_id: str | None = Field(default=None, alias="sessionId", min_length=1)
+    stream_id: str = Field(default="stream-1", alias="streamId", min_length=1)
+    sensor_id: str = Field(default="virtual-sensor-1", alias="sensorId", min_length=1)
+    scenario: str = "stable-baseline"
+    duration_sec: float = Field(default=10.0, alias="durationSec", gt=0)
+    sample_rate_hz: float = Field(default=1.0, alias="sampleRateHz", gt=0)
+    speed: float = Field(default=1.0, gt=0)
+    seed: int = 20261018
+    artifact_intensity: float = Field(default=0.48, alias="artifactIntensity", ge=0, le=1)
+    faults: list[FaultSpec] | dict[str, Any] = Field(default_factory=list)
+    fault_injection: dict[str, Any] | None = Field(default=None, alias="faultInjection")
+    no_wait: bool = Field(default=True, alias="noWait")
+
+
+class LiveFaultRequest(FaultSpec):
+    """Fault injection body; kept as a named API schema for OpenAPI clients."""

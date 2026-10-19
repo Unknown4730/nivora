@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import router
+from .live_routes import router as live_router
 from .schemas import ServiceInfo
 
 
@@ -36,10 +37,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 app.include_router(router)
+app.include_router(live_router)
 
 
 @app.get("/", response_model=ServiceInfo, tags=["service"])

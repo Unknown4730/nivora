@@ -214,6 +214,9 @@ npm --prefix frontend run dev
 
 The API is available at `http://127.0.0.1:8000`. The frontend is available at
 `http://localhost:5173`; Vite proxies API and WebSocket traffic to the API.
+The pinned Python lockfile includes the WebSocket runtime required by Uvicorn.
+Restart the backend after installing dependencies so the live connection is
+loaded.
 
 For a production frontend bundle:
 

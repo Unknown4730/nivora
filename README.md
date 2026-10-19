@@ -23,9 +23,13 @@ The backend currently provides:
 - a FastAPI API under `/api/v1`;
 - reproducible run IDs based on configuration, annotations, and seed.
 
-The React/Tailwind frontend is intentionally not part of this phase. The
-previous browser prototype is preserved under `legacy/js-prototype/` and is not
-used by the Python backend.
+The previous browser prototype is preserved under `legacy/js-prototype/` and is
+not used by the Python backend. The active frontend is the Phase 2 React/Tailwind
+dashboard described below.
+
+The Phase 2 React/Tailwind dashboard is now under `frontend/`. It connects to
+the live API, displays non-technical-professional readable status language,
+keeps technical details expandable, and provides session report exports.
 
 ## Repository layout
 
@@ -50,9 +54,20 @@ backend/
       explanations.py
       export.py
       prng.py
+    live/
+      models.py       # Canonical samples, failures, events, and reports
+      source.py       # Deterministic virtual and replay sources
+      failures.py     # Technical failure detectors and append ledger
+      storage.py      # SQLite WAL durable recorder
+      session.py      # Live lifecycle, queue, cache, and subscribers
+      export.py       # JSON/CSV/Markdown/ZIP session exports
   tests/
     api/
     domain/
+    live/
+frontend/
+  src/              # React/Tailwind non-technical-professional dashboard
+  tests/            # API/event contract tests
 docs/
   audits/            # Preserved audit of the original JS prototype
 legacy/
@@ -114,6 +129,10 @@ The suite covers domain determinism, config validation, scenario annotations,
 missing data, benchmark boundaries, sample-rate-aware output intervals, API
 creation/read-back, and export endpoints.
 
+Phase 2 also covers live session lifecycle, virtual fault injection, failure
+forensics, SQLite persistence, replay equivalence, export bundles, WebSocket
+delivery, and bounded stream stress testing.
+
 ## Run the API
 
 From the repository root:
@@ -146,6 +165,8 @@ The API is available at `http://127.0.0.1:8000`.
 - Create experiment: `POST /api/v1/experiments`
 - Read experiment: `GET /api/v1/experiments/{experiment_id}`
 - Experiment manifest: `GET /api/v1/experiments/{experiment_id}/manifest`
+
+Phase 2 live endpoints are documented in `docs/phase-2.md` and the OpenAPI UI.
 
 The run store is process-local and bounded to 128 runs. It is deliberately not
 described as durable persistence. A future persistence layer should be added
@@ -214,6 +235,17 @@ The image installs only the pinned Python dependencies, copies the backend, and
 starts Uvicorn. It does not install Node, download code at startup, or require
 an external service.
 
+The frontend is run separately during this phase:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173`. Vite proxies `/api` and WebSocket traffic to the
+backend at `http://127.0.0.1:8000`.
+
 ## Domain contract
 
 The public processing boundary is:
@@ -276,13 +308,16 @@ Completed in this phase:
 - added domain and API tests without executing frontend work.
 - added Phase 1 multi-scenario/multi-seed experiment execution and aggregate
   benchmark summaries.
+- added Phase 2 virtual live sessions, durable SQLite recording, structured
+  failure forensics, replay/export bundles, and the readable React/Tailwind
+  dashboard.
 
 Known limits:
 
 - no durable database or authentication;
 - no public dataset or real-device adapter;
 - no CI service or automated Docker build in this environment;
-- no React/Tailwind frontend yet, by request;
+- the live source is virtual/replay data; no physical sensor adapter is enabled;
 - experiment results are process-local and not durable;
 - cross-signal agreement remains an availability-and-change heuristic and must
   not be presented as validated sensor agreement.

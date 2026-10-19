@@ -1,4 +1,4 @@
-.PHONY: install test build serve
+.PHONY: install test build frontend-test frontend-build serve
 
 PYTHON_BOOTSTRAP ?= python3.12
 PYTHON ?= .venv/bin/python
@@ -14,6 +14,14 @@ test:
 build:
 	$(PYTHON) -m compileall -q backend
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m unittest discover -s backend/tests -p "test_*.py"
+
+frontend-test:
+	npm --prefix frontend ci
+	npm --prefix frontend test
+
+frontend-build:
+	npm --prefix frontend ci
+	npm --prefix frontend run build
 
 serve:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m uvicorn aura_med.api.main:app --host 127.0.0.1 --port $${PORT:-8000}

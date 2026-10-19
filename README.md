@@ -172,13 +172,41 @@ $env:PYTHONPATH = "backend"
 python -m uvicorn aura_med.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-### Linux/macOS
+### All platforms: one command
+
+After setup, run both the backend and frontend with one command from the
+repository root:
+
+```bash
+npm run dev
+```
+
+On Windows PowerShell, use the same command:
+
+```powershell
+npm run dev
+```
+
+This starts:
+
+- FastAPI at `http://127.0.0.1:8000`
+- React/Vite at `http://localhost:5173`
+
+Press `Ctrl+C` once to stop both processes.
+
+The equivalent Linux/macOS Make command is:
+
+```bash
+make dev
+```
+
+### Backend only
 
 ```bash
 make serve
 ```
 
-In a second terminal, start the development frontend:
+### Frontend only
 
 ```bash
 npm --prefix frontend run dev

@@ -1,4 +1,4 @@
-.PHONY: install test build frontend-test frontend-build serve docker-build docker-run
+.PHONY: install dev test build frontend-test frontend-build serve docker-build docker-run
 
 PYTHON_BOOTSTRAP ?= python3.12
 PYTHON ?= .venv/bin/python
@@ -8,6 +8,9 @@ install:
 	$(PYTHON_BOOTSTRAP) -m venv .venv
 	.venv/bin/python -m pip install --requirement requirements.lock
 	npm --prefix frontend ci
+
+dev:
+	npm run dev
 
 test:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m unittest discover -s backend/tests -p "test_*.py"

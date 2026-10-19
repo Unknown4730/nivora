@@ -69,6 +69,12 @@ describe("live session event contract", () => {
     expect(statusCopy(state).label).toBe("Ready to begin");
   });
 
+  it("distinguishes no reading yet from a backend-reported missing value", () => {
+    expect(channelQuality(null, null, "spo2")).toBe("Waiting for reading");
+    const missingSample = { values: { spo2: null }, qualityFlags: [] };
+    expect(channelQuality(missingSample, null, "spo2")).toBe("Missing reading");
+  });
+
   it("hydrates a read-only review from persisted report, failures, and replay samples", () => {
     const samples = [
       { sampleId: "sample-1", relativeTimeSec: 0, values: { spo2: 97 }, qualityFlags: [] },

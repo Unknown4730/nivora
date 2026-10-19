@@ -153,7 +153,8 @@ function SessionHistory({ sessions, currentSessionId, busy, onOpen }) {
 
 function SignalCard({ channel, sample, qualityEvent }) {
   const meta = CHANNELS[channel];
-  const missing = sample?.values?.[channel] === null || sample?.values?.[channel] === undefined;
+  const hasSample = Boolean(sample);
+  const missing = hasSample && (sample?.values?.[channel] === null || sample?.values?.[channel] === undefined);
   const quality = channelQuality(sample, qualityEvent, channel);
   return (
     <article className="panel p-5" aria-label={`${meta.label} simulated research signal`}>
@@ -170,8 +171,8 @@ function SignalCard({ channel, sample, qualityEvent }) {
 
       <div className="mt-6 flex items-baseline gap-3">
         <span className="text-3xl font-semibold tracking-[-0.06em] text-ink">{channelValue(sample, channel)}</span>
-        <span className={`text-xs font-semibold ${missing ? "text-amber-600" : "text-quiet"}`}>
-          {missing ? "Missing" : channelTrend(sample, channel)}
+        <span className={`text-xs font-semibold ${missing ? "text-amber-700" : "text-quiet"}`}>
+          {!hasSample ? "Waiting for first reading" : missing ? "Missing" : channelTrend(sample, channel)}
         </span>
       </div>
       <p className="mt-1 text-xs text-quiet">
@@ -188,8 +189,8 @@ function SignalCard({ channel, sample, qualityEvent }) {
           <dd className="mt-1 font-semibold text-ink">{channelTrust(sample, channel)}</dd>
         </div>
       </dl>
-      <p className={`mt-4 min-h-5 text-xs ${missing ? "font-semibold text-amber-600" : "text-quiet"}`}>
-        {missing ? "This channel has no usable value in the latest sample." : "Missing state: no missing value reported."}
+      <p className={`mt-4 min-h-5 text-xs ${missing ? "font-semibold text-amber-700" : "text-quiet"}`}>
+        {!hasSample ? "No reading has arrived yet." : missing ? "This channel has no usable value in the latest sample." : "Missing state: no missing value reported."}
       </p>
     </article>
   );
@@ -543,6 +544,28 @@ export default function App() {
     return () => { active = false; window.clearInterval(interval); };
   }, [session?.sessionId, reviewMode]);
 
+  useEffect(() => {
+    const sessionId = session?.sessionId;
+    if (!sessionId || reviewMode || liveState.connection !== "interrupted") return undefined;
+    let active = true;
+    const refreshSamples = async () => {
+      try {
+        const replay = await getLiveReplay(sessionId);
+        if (!active || !Array.isArray(replay?.samples)) return;
+        setLiveState((current) => ({
+          ...current,
+          samples: replay.samples,
+          latestSample: replay.samples.at(-1) || current.latestSample,
+        }));
+      } catch {
+        // The status polling path remains authoritative when replay is unavailable.
+      }
+    };
+    refreshSamples();
+    const interval = window.setInterval(refreshSamples, 1500);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [session?.sessionId, reviewMode, liveState.connection]);
+
   const selectedScenario = useMemo(
     () => scenarios.find((scenario) => scenario.id === config.scenario) || scenarios[0],
     [config.scenario, scenarios],
@@ -625,9 +648,8 @@ export default function App() {
       intentionalClose.current = false;
 
       let resolveOpen;
-      let rejectOpen;
       let opened = false;
-      const socketOpened = new Promise((resolve, reject) => { resolveOpen = resolve; rejectOpen = reject; });
+      const socketOpened = new Promise((resolve) => { resolveOpen = resolve; });
       const socket = createLiveSocket(sessionId, {
         onOpen: () => { opened = true; setLiveState((current) => ({ ...current, connection: "connected" })); resolveOpen(); },
         onEvent: (event) => {
@@ -639,21 +661,26 @@ export default function App() {
         },
         onError: (message) => {
           setLiveState((current) => ({ ...current, connection: "interrupted" }));
-          if (!opened) rejectOpen(new Error(message));
+          if (!opened) resolveOpen(false);
+          setError(message);
         },
         onClose: () => {
           if (!intentionalClose.current) setLiveState((current) => ({ ...current, connection: "interrupted" }));
         },
       });
       socketRef.current = socket;
-      await Promise.race([
-        socketOpened,
-        new Promise((_, reject) => window.setTimeout(() => reject(new Error("The live stream did not open in time.")), 8000)),
-      ]);
       setBusy("starting");
       const started = await startLiveSession(sessionId);
       setSession((current) => ({ ...current, ...started }));
       setLiveState((current) => mergeSnapshot(current, started));
+      const socketAvailable = await Promise.race([
+        socketOpened,
+        new Promise((resolve) => window.setTimeout(() => resolve(false), 8000)),
+      ]);
+      if (!socketAvailable) {
+        setLiveState((current) => ({ ...current, connection: "interrupted" }));
+        setError("The live stream connection could not be established. The session is still running; status will continue to update through the API.");
+      }
       setBusy("");
       refreshSessionCatalog();
     } catch (startError) {

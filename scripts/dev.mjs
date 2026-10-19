@@ -1,14 +1,31 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import net from "node:net";
 import { platform } from "node:os";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const isWindows = platform() === "win32";
 const python = resolve(root, isWindows ? ".venv/Scripts/python.exe" : ".venv/bin/python");
+const backendPort = 8000;
 
 if (!existsSync(python)) {
   console.error(`Python virtual environment not found at ${python}. Run the setup command from README.md first.`);
+  process.exit(1);
+}
+
+function portIsAvailable(port) {
+  return new Promise((resolvePort) => {
+    const probe = net.createServer();
+    probe.once("error", () => resolvePort(false));
+    probe.once("listening", () => probe.close(() => resolvePort(true)));
+    probe.listen(port, "127.0.0.1");
+  });
+}
+
+if (!(await portIsAvailable(backendPort))) {
+  console.error(`Port ${backendPort} is already in use. Stop the existing AURA-Med backend, then run npm run dev again.`);
+  console.error(isWindows ? "PowerShell: Get-NetTCPConnection -LocalPort 8000 | Select-Object OwningProcess" : "Linux/macOS: lsof -i :8000");
   process.exit(1);
 }
 

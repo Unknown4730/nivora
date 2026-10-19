@@ -174,8 +174,11 @@ python -m uvicorn aura_med.api.main:app --host 127.0.0.1 --port 8000
 
 ### All platforms: one command
 
-After setup, run both the backend and frontend with one command from the
-repository root:
+Yes, the backend must run inside the project virtual environment. The one-command
+runner uses `.venv/Scripts/python.exe` on Windows and `.venv/bin/python` on
+Linux/macOS automatically; you do not need to activate it manually.
+
+After setup, run both the backend and frontend from the repository root:
 
 ```bash
 npm run dev
@@ -193,6 +196,21 @@ This starts:
 - React/Vite at `http://localhost:5173`
 
 Press `Ctrl+C` once to stop both processes.
+
+If you see an address-in-use error, another backend is already using port 8000.
+Stop it before running the command again. On Windows:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8000 | Select-Object OwningProcess
+Stop-Process -Id <PID> -Force
+```
+
+On Linux/macOS:
+
+```bash
+lsof -i :8000
+kill <PID>
+```
 
 The equivalent Linux/macOS Make command is:
 

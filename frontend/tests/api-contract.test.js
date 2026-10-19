@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLiveSession } from "../src/api.js";
+import { createLiveSession, listLiveSessions } from "../src/api.js";
 
 describe("live API contract", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -39,5 +39,17 @@ describe("live API contract", () => {
         }),
       }),
     );
+  });
+
+  it("reads the bounded session catalog for a future history screen", async () => {
+    const catalog = { sessions: [], limit: 25 };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      headers: { get: () => "application/json" },
+      json: async () => catalog,
+    });
+
+    await expect(listLiveSessions(25)).resolves.toEqual(catalog);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/live/sessions?limit=25", expect.anything());
   });
 });

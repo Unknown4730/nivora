@@ -57,6 +57,10 @@ export function getLiveSession(sessionId) {
   return request(`${LIVE_PREFIX}/sessions/${encodeURIComponent(sessionId)}`);
 }
 
+export function listLiveSessions(limit = 100) {
+  return request(`${LIVE_PREFIX}/sessions?limit=${encodeURIComponent(limit)}`);
+}
+
 export function startLiveSession(sessionId) {
   return request(`${LIVE_PREFIX}/sessions/${encodeURIComponent(sessionId)}/start`, { method: "POST" });
 }

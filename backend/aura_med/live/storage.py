@@ -211,6 +211,19 @@ class SQLiteRecorder:
             ).fetchone()
         return None if row is None else json.loads(row["metadata_json"])
 
+    def list_sessions(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Return the newest persisted session metadata for a review screen."""
+
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0:
+            raise ValueError("limit must be a positive integer")
+        limit = min(limit, 500)
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT metadata_json FROM sessions ORDER BY updated_timestamp DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [json.loads(row["metadata_json"]) for row in rows]
+
     def get_samples(self, session_id: str) -> list[LiveSample]:
         with self._lock:
             rows = self._connection.execute(

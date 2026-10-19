@@ -46,6 +46,17 @@ def get_live_session(session_id: str) -> JSONResponse:
     return JSONResponse(content=jsonable_encoder(live_manager.get_session(session_id)))
 
 
+@router.get("/sessions")
+def list_live_sessions(limit: int = 100) -> JSONResponse:
+    """Return persisted sessions for frontend history and review screens."""
+
+    try:
+        sessions = live_manager.list_sessions(limit)
+    except (TypeError, ValueError, StorageError) as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    return JSONResponse(content=jsonable_encoder({"sessions": sessions, "limit": min(limit, 500)}))
+
+
 @router.post("/sessions/{session_id}/start")
 async def start_live_session(session_id: str) -> JSONResponse:
     _session_id_or_404(session_id)

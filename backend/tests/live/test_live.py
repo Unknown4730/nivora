@@ -163,6 +163,12 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(client.get(f"/api/v1/live/sessions/{session_id}/export.zip").status_code, 200)
         self.assertEqual(client.post(f"/api/v1/live/sessions/{session_id}/stop").status_code, 200)
 
+    def test_persisted_session_catalog_supports_frontend_history(self) -> None:
+        response = TestClient(app).get("/api/v1/live/sessions")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("sessions", response.json())
+        self.assertIsInstance(response.json()["sessions"], list)
+
     def test_bounded_thousands_sample_stress(self) -> None:
         recorder = SQLiteRecorder(data_dir=pathlib.Path(tempfile.mkdtemp()))
         manager = SessionManager(recorder, max_hot_samples=32, queue_size=32)

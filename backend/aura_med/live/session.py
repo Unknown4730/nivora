@@ -486,6 +486,11 @@ class SessionManager:
         payload["failureCount"] = self.recorder.count("failures", session_id)
         return payload
 
+    def list_sessions(self, limit: int = 100) -> list[dict[str, Any]]:
+        """List durable sessions for a future history/review interface."""
+
+        return self.recorder.list_sessions(limit)
+
     def get_samples(self, session_id: str) -> list[LiveSample]:
         self._session(session_id)
         return self.recorder.get_samples(session_id)

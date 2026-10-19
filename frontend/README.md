@@ -10,6 +10,11 @@ and any future trend/trust fields are displayed from backend responses. The
 frontend formats those fields for readability and does not reimplement backend
 quality, trust, or classification calculations.
 
+The dashboard is designed for high-contrast, keyboard-friendly review: status
+meaning is written in text, chart lines use both color and line style, and the
+chart has an expandable text data view. Completed recordings can be opened from
+History and read as a stored, read-only replay after the backend restarts.
+
 ## Requirements
 
 - Node.js `22.14.0` (pinned in `.nvmrc`)
@@ -54,4 +59,6 @@ fields are not invented by the frontend.
 There is no browser automation dependency in this compact frontend, so the
 test suite does not click a real browser or open a live FastAPI process. The
 manual smoke path is: create a session, start it, observe samples and the
-WebSocket status, end it, then open the four export links.
+WebSocket status, end it, open History and read-only review, expand the text
+data view and technical details, then open the four export links. Check the
+flow with keyboard navigation and at 200% browser zoom.

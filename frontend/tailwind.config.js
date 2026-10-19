@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         ink: "#17312d",
-        quiet: "#637873",
+        quiet: "#4d625d",
         line: "#d8e6e1",
         mint: "#e9f7f2",
         teal: {
@@ -18,12 +18,14 @@ export default {
         amber: {
           50: "#fff8e8",
           100: "#ffefc4",
-          600: "#a26b12",
+          600: "#8a5200",
+          700: "#6e3f00",
         },
         coral: {
           50: "#fff1f1",
           100: "#ffdfe1",
-          600: "#b4515d",
+          600: "#963844",
+          700: "#762b35",
         },
       },
       boxShadow: {

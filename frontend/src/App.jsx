@@ -79,8 +79,8 @@ function formatTimestamp(value) {
 function toneClasses(tone) {
   return {
     teal: "border-teal-100 bg-teal-50 text-teal-700",
-    amber: "border-amber-100 bg-amber-50 text-amber-600",
-    coral: "border-coral-100 bg-coral-50 text-coral-600",
+    amber: "border-amber-100 bg-amber-50 text-amber-700",
+    coral: "border-coral-100 bg-coral-50 text-coral-700",
     slate: "border-slate-200 bg-slate-50 text-slate-600",
   }[tone] || "border-slate-200 bg-slate-50 text-slate-600";
 }
@@ -90,16 +90,16 @@ function StatusDot({ tone = "slate" }) {
   return <span aria-hidden="true" className={`inline-block h-2.5 w-2.5 rounded-full ${colors[tone] || colors.slate}`} />;
 }
 
-function StatusSummary({ liveState }) {
+function StatusSummary({ liveState, statusRef }) {
   const copy = statusCopy(liveState);
   return (
-    <section className={`rounded-2xl border p-5 ${toneClasses(copy.tone)}`} aria-live="polite">
+    <section ref={statusRef} tabIndex="-1" className={`rounded-2xl border p-5 ${toneClasses(copy.tone)}`} aria-labelledby="live-status-heading">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-2.5">
           <StatusDot tone={copy.tone} />
           <div>
             <p className="mono-label">Live stream status</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-[-0.03em]">{copy.label}</h2>
+            <h2 id="live-status-heading" className="mt-1 text-xl font-semibold tracking-[-0.03em]">{copy.label}</h2>
           </div>
         </div>
         <p className="max-w-md text-sm leading-6">{copy.detail}</p>
@@ -156,12 +156,12 @@ function SignalCard({ channel, sample, qualityEvent }) {
   const missing = sample?.values?.[channel] === null || sample?.values?.[channel] === undefined;
   const quality = channelQuality(sample, qualityEvent, channel);
   return (
-    <article className="panel p-5" aria-label={`${meta.label} live signal`}>
+    <article className="panel p-5" aria-label={`${meta.label} simulated research signal`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="mono-label flex items-center gap-2">
             <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
-            Live signal
+            Simulated signal
           </p>
           <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-ink">{meta.label}</h2>
         </div>
@@ -221,6 +221,7 @@ function Chart({ samples, durationSec }) {
   }
 
   const labels = [0, 0.25, 0.5, 0.75, 1].map((fraction) => `${formatNumber(Number(durationSec) * fraction, 0)}s`);
+  const dashPatterns = { spo2: undefined, "heart-rate": "8 5", respiration: "2 5" };
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -230,8 +231,8 @@ function Chart({ samples, durationSec }) {
         </div>
         <div className="flex flex-wrap gap-3 text-xs text-quiet" aria-label="Chart legend">
           {CHANNEL_IDS.map((channel) => (
-            <span key={channel} className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CHANNELS[channel].color }} />
+            <span key={channel} className="inline-flex items-center gap-1.5 font-semibold">
+              <span className="h-0.5 w-5" style={{ backgroundColor: CHANNELS[channel].color, borderTop: dashPatterns[channel] ? `2px ${channel === "heart-rate" ? "dashed" : "dotted"} ${CHANNELS[channel].color}` : undefined }} />
               {CHANNELS[channel].label}
             </span>
           ))}
@@ -244,13 +245,13 @@ function Chart({ samples, durationSec }) {
             <p>No samples yet. Start a session to see the stream draw here.</p>
           </div>
         ) : (
-          <svg className="block h-auto w-full" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Live traces for the three simulated channels">
+          <svg className="block h-auto w-full" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Simulated research traces for SpO₂, heart rate, and respiration. Gaps indicate missing values.">
             {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
               const y = pad.top + fraction * innerHeight;
               return <line key={fraction} x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="#dce9e4" strokeWidth="1" />;
             })}
             {CHANNEL_IDS.map((channel) => (
-              <path key={channel} d={pathFor(channel)} fill="none" stroke={CHANNELS[channel].color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+              <path key={channel} d={pathFor(channel)} fill="none" stroke={CHANNELS[channel].color} strokeDasharray={dashPatterns[channel]} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
             ))}
           </svg>
         )}
@@ -258,8 +259,47 @@ function Chart({ samples, durationSec }) {
       <div className="mt-2 flex justify-between px-1 font-mono text-[10px] text-quiet" aria-hidden="true">
         {labels.map((label) => <span key={label}>{label}</span>)}
       </div>
-      <p className="mt-4 text-xs leading-5 text-quiet">The chart shows values supplied by the stream. Missing values create visible gaps; no frontend quality or classification score is calculated.</p>
+      <p className="mt-4 text-xs leading-5 text-quiet">The chart shows values supplied by the stream. Line style and color identify each channel. Missing values create visible gaps; no frontend quality or classification score is calculated.</p>
+      <SampleTable samples={samples} />
     </div>
+  );
+}
+
+function SampleTable({ samples }) {
+  const visibleSamples = samples.slice(-50);
+  return (
+    <details className="mt-5 rounded-xl border border-line bg-white group">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        <span>Text data view <span className="ml-1 text-xs font-normal text-quiet">({visibleSamples.length} of {samples.length} samples)</span></span>
+        <span className="text-teal-700 transition group-open:rotate-180" aria-hidden="true">⌄</span>
+      </summary>
+      <div className="overflow-x-auto border-t border-line">
+        {visibleSamples.length === 0 ? (
+          <p className="p-4 text-sm text-quiet">No sample rows are available yet.</p>
+        ) : (
+          <table className="min-w-full text-left text-xs" aria-label="Simulated research sample values">
+            <caption className="sr-only">Sample values supplied by the backend. Missing values are shown explicitly.</caption>
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-[0.08em] text-quiet">
+              <tr>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold" scope="col">Time</th>
+                {CHANNEL_IDS.map((channel) => <th className="whitespace-nowrap px-4 py-3 font-semibold" scope="col" key={channel}>{CHANNELS[channel].label} ({CHANNELS[channel].unit})</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {visibleSamples.map((sample, index) => (
+                <tr key={`${sample.sampleId || "sample"}-${index}`}>
+                  <th className="whitespace-nowrap px-4 py-3 font-mono font-medium text-ink" scope="row">{formatNumber(sample.relativeTimeSec, 2)} s</th>
+                  {CHANNEL_IDS.map((channel) => {
+                    const missing = sample?.values?.[channel] === null || sample?.values?.[channel] === undefined;
+                    return <td className={`whitespace-nowrap px-4 py-3 font-mono ${missing ? "font-semibold text-amber-700" : "text-ink"}`} key={channel}>{missing ? "Missing" : channelValue(sample, channel)}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -267,7 +307,7 @@ function WhatIsHappening({ liveState, report }) {
   const copy = statusCopy(liveState);
   const reportSummary = report?.summary;
   return (
-    <section className="panel h-full p-5" aria-live="polite">
+    <section className="panel h-full p-5">
       <p className="mono-label">Plain-English view</p>
       <h2 className="section-title mt-1">What is happening?</h2>
       <div className={`mt-5 rounded-xl border p-4 ${toneClasses(copy.tone)}`}>
@@ -311,7 +351,7 @@ function TechnicalDetails({ liveState, report }) {
           <p className="mono-label">For engineers</p>
           <h2 className="section-title mt-1">Technical details</h2>
         </div>
-        <span className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-quiet transition group-open:bg-slate-50">Expand</span>
+        <span className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-xs font-semibold text-quiet transition group-open:bg-slate-50"><span className="group-open:hidden">Expand</span><span className="hidden group-open:inline">Collapse</span><span className="transition group-open:rotate-180" aria-hidden="true">⌄</span></span>
       </summary>
       <div className="border-t border-line px-5 pb-5 pt-4">
         {!liveState.snapshot ? (
@@ -377,7 +417,7 @@ function FailureTimeline({ failures }) {
                     <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-quiet">{formatNumber(failure.relativeTimeSec, 2)} s</p>
                     <h3 className="mt-1 text-sm font-semibold text-ink">{failureTitle(failure.type)}</h3>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${status === "recovered" ? "bg-teal-100 text-teal-700" : status === "reviewed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-600"}`}>{status}</span>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${status === "recovered" ? "bg-teal-100 text-teal-700" : status === "reviewed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-700"}`}>{status}</span>
                 </div>
                 <p className="mt-3 text-sm leading-5 text-quiet">{status === "recovered" ? "The backend recorded recovery for this technical event." : `The event affected ${affected.toLowerCase()}.`}</p>
                 <dl className="mt-4 grid gap-3 border-t border-line pt-3 text-xs sm:grid-cols-3">
@@ -385,8 +425,11 @@ function FailureTimeline({ failures }) {
                   <div><dt className="text-quiet">Affected channels</dt><dd className="mt-1 font-semibold text-ink">{affected}</dd></div>
                   <div><dt className="text-quiet">Review state</dt><dd className="mt-1 font-semibold capitalize text-ink">{String(failure.reviewState || "unreviewed").replaceAll("_", " ")}</dd></div>
                 </dl>
-                <details className="mt-4 border-t border-line pt-3 text-xs">
-                  <summary className="cursor-pointer font-semibold text-teal-700">Show technical code details</summary>
+                <details className="group mt-4 border-t border-line pt-3 text-xs">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-teal-700 [&::-webkit-details-marker]:hidden">
+                    <span><span className="group-open:hidden">Show technical code details</span><span className="hidden group-open:inline">Hide technical code details</span></span>
+                    <span className="transition group-open:rotate-180" aria-hidden="true">⌄</span>
+                  </summary>
                   <div className="mt-3 grid gap-2 font-mono text-[11px] text-quiet sm:grid-cols-2">
                     <p>id: {failure.failureId || "—"}</p>
                     <p>type: {failure.type || "—"}</p>
@@ -440,6 +483,7 @@ export default function App() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const socketRef = useRef(null);
+  const statusRef = useRef(null);
   const intentionalClose = useRef(false);
   const loadedArtifactsFor = useRef("");
 
@@ -549,6 +593,7 @@ export default function App() {
       setReport(reviewReport);
       setLiveState(mergeReviewArtifacts(initialLiveState, reviewSession, reviewReport, reviewFailures, replay));
       setBusy("");
+      window.setTimeout(() => statusRef.current?.focus(), 0);
     } catch (reviewError) {
       setBusy("");
       setError(reviewError.message || "The recorded session could not be opened.");
@@ -657,7 +702,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f5f9f7] text-ink">
-      <header className="border-b border-line bg-white/80">
+      <header className="border-b border-line bg-white/95">
         <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-5 py-4 lg:px-8">
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 font-semibold text-white shadow-sm" aria-hidden="true">A</span>
@@ -666,14 +711,17 @@ export default function App() {
               <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-quiet">Live reliability lab</p>
             </div>
           </div>
-          <div className="hidden items-center gap-3 text-xs text-quiet sm:flex">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-quiet">
             <span className="flex items-center gap-2"><StatusDot tone={liveState.connection === "interrupted" ? "coral" : "teal"} /> {liveState.connection === "connected" ? "Live link" : "Local research mode"}</span>
-            {session?.sessionId && <span className="tag">{session.sessionId}</span>}
+            {session?.sessionId && <span className="hidden max-w-[180px] truncate tag sm:inline-flex" title={session.sessionId}>{session.sessionId}</span>}
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-[1320px] px-5 pb-12 lg:px-8">
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {busy === "reviewing" ? "Opening recorded session for read-only review." : error || statusCopy(liveState).label}
+        </p>
         <section className="grid gap-6 py-9 lg:grid-cols-[1fr_330px] lg:items-end lg:py-12">
           <div>
             <p className="eyebrow">Phase 2 · Virtual live session</p>
@@ -686,7 +734,7 @@ export default function App() {
           </aside>
         </section>
 
-        <section className="panel p-5 sm:p-6" aria-labelledby="config-heading">
+        <section className="panel p-5 sm:p-6" aria-labelledby="config-heading" aria-busy={Boolean(busy)}>
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div>
               <p className="mono-label">Session setup</p>
@@ -741,7 +789,7 @@ export default function App() {
               <span className="mt-2 block min-h-8 text-xs leading-4 text-quiet">{FAULT_PROFILES.find((profile) => profile.id === config.faultProfile)?.help}</span>
             </label>
           </div>
-          {error && <p className="mt-4 rounded-lg border border-coral-100 bg-coral-50 px-3 py-2 text-sm text-coral-600" role="alert">{error}</p>}
+          {error && <p className="mt-4 rounded-lg border border-coral-100 bg-coral-50 px-3 py-2 text-sm text-coral-700" role="alert">{error}</p>}
         </section>
 
         {reviewMode && (
@@ -750,10 +798,14 @@ export default function App() {
             <p className="mt-1 text-xs leading-5">This view is hydrated from the stored session record. It does not open a live connection or restart the source.</p>
           </div>
         )}
+        <div className="mt-5"><StatusSummary liveState={liveState} statusRef={statusRef} /></div>
         <div className="mt-5"><SessionHistory sessions={sessionCatalog} currentSessionId={session?.sessionId} busy={busy} onOpen={openReview} /></div>
-        <div className="mt-5"><StatusSummary liveState={liveState} /></div>
 
-        <section className="mt-5 grid gap-4 lg:grid-cols-3" aria-label="Live signal cards">
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+          <p className="eyebrow">Simulated research data</p>
+          <p className="text-xs font-semibold text-quiet">Transport quality only · not a clinical measurement</p>
+        </div>
+        <section className="mt-3 grid gap-4 lg:grid-cols-3" aria-label="Simulated research signal cards">
           {CHANNEL_IDS.map((channel) => <SignalCard key={channel} channel={channel} sample={liveState.latestSample} qualityEvent={qualityEvent} />)}
         </section>
 

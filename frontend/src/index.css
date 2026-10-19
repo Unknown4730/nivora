@@ -15,14 +15,18 @@ body { margin: 0; min-width: 320px; font-family: Inter, ui-sans-serif, system-ui
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
-:focus-visible { outline: 3px solid rgba(29, 154, 140, .45); outline-offset: 2px; }
+:focus-visible { outline: 3px solid #075d57; outline-offset: 3px; box-shadow: 0 0 0 2px #ffffff; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
 
 @layer components {
   .panel { @apply rounded-2xl border border-line bg-white shadow-panel; }
   .eyebrow { @apply font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-700; }
   .section-title { @apply text-lg font-semibold tracking-[-0.03em] text-ink; }
   .muted { @apply text-sm leading-6 text-quiet; }
-  .mono-label { @apply font-mono text-[10px] uppercase tracking-[0.12em] text-quiet; }
+  .mono-label { @apply font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-quiet; }
   .field-label { @apply mb-2 block text-xs font-semibold text-ink; }
   .field-control { @apply h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink transition hover:border-teal-500; }
   .primary-button { @apply inline-flex min-h-10 items-center justify-center rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:bg-slate-300; }

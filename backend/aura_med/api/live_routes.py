@@ -24,9 +24,16 @@ def _unknown(session_id: str) -> HTTPException:
 
 def _session_id_or_404(session_id: str) -> str:
     try:
-        live_manager.get_session(session_id)
+        if not live_manager.has_active_session(session_id):
+            raise KeyError(session_id)
     except KeyError as error:
         raise _unknown(session_id) from error
+    return session_id
+
+
+def _readable_session_id_or_404(session_id: str) -> str:
+    if not live_manager.has_readable_session(session_id):
+        raise _unknown(session_id)
     return session_id
 
 
@@ -42,7 +49,7 @@ def create_live_session(request: LiveSessionRequest) -> JSONResponse:
 
 @router.get("/sessions/{session_id}")
 def get_live_session(session_id: str) -> JSONResponse:
-    _session_id_or_404(session_id)
+    _readable_session_id_or_404(session_id)
     return JSONResponse(content=jsonable_encoder(live_manager.get_session(session_id)))
 
 
@@ -92,19 +99,19 @@ def inject_live_fault(session_id: str, request: LiveFaultRequest) -> JSONRespons
 @router.get("/sessions/{session_id}/report")
 @router.get("/sessions/{session_id}/current-report")
 def get_live_report(session_id: str) -> JSONResponse:
-    _session_id_or_404(session_id)
+    _readable_session_id_or_404(session_id)
     return JSONResponse(content=jsonable_encoder(live_manager.get_report(session_id)))
 
 
 @router.get("/sessions/{session_id}/failures")
 def get_live_failures(session_id: str) -> JSONResponse:
-    _session_id_or_404(session_id)
+    _readable_session_id_or_404(session_id)
     return JSONResponse(content=jsonable_encoder({"sessionId": session_id, "failures": live_manager.get_failures(session_id)}))
 
 
 @router.get("/sessions/{session_id}/replay")
 def replay_live_session(session_id: str) -> JSONResponse:
-    _session_id_or_404(session_id)
+    _readable_session_id_or_404(session_id)
     replay = live_manager.replay(session_id)
     samples = replay.samples()
     return JSONResponse(
@@ -120,7 +127,7 @@ def replay_live_session(session_id: str) -> JSONResponse:
 
 
 def _export_or_404(session_id: str) -> dict[str, Any]:
-    _session_id_or_404(session_id)
+    _readable_session_id_or_404(session_id)
     return live_manager.export_data(session_id)
 
 

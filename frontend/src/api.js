@@ -77,6 +77,10 @@ export function getLiveFailures(sessionId) {
   return request(`${LIVE_PREFIX}/sessions/${encodeURIComponent(sessionId)}/failures`);
 }
 
+export function getLiveReplay(sessionId) {
+  return request(`${LIVE_PREFIX}/sessions/${encodeURIComponent(sessionId)}/replay`);
+}
+
 export function exportUrl(sessionId, file) {
   return apiUrl(`${LIVE_PREFIX}/sessions/${encodeURIComponent(sessionId)}/${file}`);
 }

@@ -4,8 +4,10 @@ import {
   createLiveSocket,
   exportUrl,
   getLiveFailures,
+  getLiveReplay,
   getLiveReport,
   getLiveSession,
+  listLiveSessions,
   listScenarios,
   startLiveSession,
   stopLiveSession,
@@ -22,6 +24,7 @@ import {
   failureTitle,
   friendlyChannel,
   initialLiveState,
+  mergeReviewArtifacts,
   mergeSnapshot,
   reduceLiveEvent,
   statusCopy,
@@ -68,6 +71,11 @@ function formatFaultType(type) {
   return String(type || "not recorded").replaceAll("_", " ");
 }
 
+function formatTimestamp(value) {
+  if (!value || !Number.isFinite(Number(value))) return "Time not recorded";
+  return new Date(Number(value) * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+}
+
 function toneClasses(tone) {
   return {
     teal: "border-teal-100 bg-teal-50 text-teal-700",
@@ -96,6 +104,49 @@ function StatusSummary({ liveState }) {
         </div>
         <p className="max-w-md text-sm leading-6">{copy.detail}</p>
       </div>
+    </section>
+  );
+}
+
+function SessionHistory({ sessions, currentSessionId, busy, onOpen }) {
+  return (
+    <section className="panel p-5" aria-labelledby="history-heading">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="mono-label">Recorded sessions</p>
+          <h2 id="history-heading" className="section-title mt-1">History and read-only review</h2>
+        </div>
+        <span className="tag">{sessions.length} available</span>
+      </div>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-quiet">Open a completed recording from SQLite without restarting its virtual source. Historical sessions are read-only and use the stored replay samples.</p>
+      {sessions.length === 0 ? (
+        <div className="mt-5 rounded-xl border border-dashed border-line bg-slate-50/60 p-5 text-sm text-quiet">No recorded sessions are available yet.</div>
+      ) : (
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          {sessions.map((item) => {
+            const sessionId = item.sessionId || item.session_id;
+            const state = String(item.state || "unknown").replaceAll("_", " ");
+            return (
+              <article key={sessionId} className="rounded-xl border border-line bg-slate-50/50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-quiet">{formatTimestamp(item.stoppedTimestamp || item.createdTimestamp)}</p>
+                    <h3 className="mt-1 text-sm font-semibold text-ink">{item.scenario || "Recorded session"}</h3>
+                  </div>
+                  <span className="tag">{state}</span>
+                </div>
+                <p className="mt-2 truncate font-mono text-xs text-quiet" title={sessionId}>{sessionId}</p>
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
+                  <span className="text-xs text-quiet">{item.durationSec ?? "—"}s · seed {item.seed ?? "—"}</span>
+                  <button className="secondary-button min-h-9 px-3 text-xs" type="button" onClick={() => onOpen(sessionId)} disabled={Boolean(busy) || currentSessionId === sessionId}>
+                    {currentSessionId === sessionId ? "Open" : "Open review"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
@@ -381,9 +432,11 @@ function ExportLinks({ sessionId }) {
 export default function App() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [scenarios, setScenarios] = useState(SCENARIO_FALLBACKS);
+  const [sessionCatalog, setSessionCatalog] = useState([]);
   const [liveState, setLiveState] = useState(initialLiveState);
   const [session, setSession] = useState(null);
   const [report, setReport] = useState(null);
+  const [reviewMode, setReviewMode] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const socketRef = useRef(null);
@@ -403,6 +456,18 @@ export default function App() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    listLiveSessions()
+      .then((payload) => {
+        if (active && Array.isArray(payload?.sessions)) setSessionCatalog(payload.sessions);
+      })
+      .catch(() => {
+        // History is optional while the API is offline; creation remains usable.
+      });
+    return () => { active = false; };
+  }, []);
+
   useEffect(() => () => {
     intentionalClose.current = true;
     socketRef.current?.close();
@@ -410,7 +475,7 @@ export default function App() {
 
   useEffect(() => {
     const sessionId = session?.sessionId;
-    if (!sessionId) return undefined;
+    if (!sessionId || reviewMode) return undefined;
     let active = true;
     const refresh = async () => {
       try {
@@ -432,7 +497,7 @@ export default function App() {
     };
     const interval = window.setInterval(refresh, 1200);
     return () => { active = false; window.clearInterval(interval); };
-  }, [session?.sessionId]);
+  }, [session?.sessionId, reviewMode]);
 
   const selectedScenario = useMemo(
     () => scenarios.find((scenario) => scenario.id === config.scenario) || scenarios[0],
@@ -449,6 +514,15 @@ export default function App() {
     socketRef.current = null;
   }
 
+  async function refreshSessionCatalog() {
+    try {
+      const payload = await listLiveSessions();
+      if (Array.isArray(payload?.sessions)) setSessionCatalog(payload.sessions);
+    } catch {
+      // Keep the last known history while the live session remains usable.
+    }
+  }
+
   async function loadArtifacts(sessionId) {
     try {
       const [nextReport, nextFailures] = await Promise.all([getLiveReport(sessionId), getLiveFailures(sessionId)]);
@@ -459,8 +533,31 @@ export default function App() {
     }
   }
 
+  async function openReview(sessionId) {
+    setError("");
+    setBusy("reviewing");
+    closeSocket();
+    try {
+      const [reviewSession, reviewReport, reviewFailures, replay] = await Promise.all([
+        getLiveSession(sessionId),
+        getLiveReport(sessionId),
+        getLiveFailures(sessionId),
+        getLiveReplay(sessionId),
+      ]);
+      setReviewMode(true);
+      setSession(reviewSession);
+      setReport(reviewReport);
+      setLiveState(mergeReviewArtifacts(initialLiveState, reviewSession, reviewReport, reviewFailures, replay));
+      setBusy("");
+    } catch (reviewError) {
+      setBusy("");
+      setError(reviewError.message || "The recorded session could not be opened.");
+    }
+  }
+
   async function startSession() {
     setError("");
+    setReviewMode(false);
     setReport(null);
     loadedArtifactsFor.current = "";
     closeSocket();
@@ -513,6 +610,7 @@ export default function App() {
       setSession((current) => ({ ...current, ...started }));
       setLiveState((current) => mergeSnapshot(current, started));
       setBusy("");
+      refreshSessionCatalog();
     } catch (startError) {
       closeSocket();
       setBusy("");
@@ -532,6 +630,7 @@ export default function App() {
       await loadArtifacts(session.sessionId);
       setBusy("");
       closeSocket();
+      refreshSessionCatalog();
     } catch (stopError) {
       setBusy("");
       setError(stopError.message || "The session could not be stopped.");
@@ -541,6 +640,7 @@ export default function App() {
   function resetSession() {
     closeSocket();
     setSession(null);
+    setReviewMode(false);
     setReport(null);
     setLiveState(initialLiveState);
     setError("");
@@ -553,6 +653,7 @@ export default function App() {
   const canStart = !busy && !isRunning && !session;
   const showExports = Boolean(session?.sessionId && isStopped);
   const qualityEvent = liveState.latestSample ? liveState.qualityBySample[liveState.latestSample.sampleId] : null;
+  const displayDuration = Number(session?.durationSec ?? config.durationSec) || 1;
 
   return (
     <div className="min-h-screen bg-[#f5f9f7] text-ink">
@@ -596,7 +697,7 @@ export default function App() {
               <button className="primary-button" type="button" onClick={startSession} disabled={!canStart}>
                 {busy === "creating" ? "Creating…" : busy === "connecting" ? "Connecting…" : busy === "starting" ? "Starting…" : "Start session"}
               </button>
-              <button className="secondary-button" type="button" onClick={stopSession} disabled={!session?.sessionId || !isRunning || Boolean(busy)}>{busy === "stopping" ? "Ending…" : "End session"}</button>
+              <button className="secondary-button" type="button" onClick={stopSession} disabled={reviewMode || !session?.sessionId || !isRunning || Boolean(busy)}>{busy === "stopping" ? "Ending…" : "End session"}</button>
             </div>
           </div>
 
@@ -643,6 +744,13 @@ export default function App() {
           {error && <p className="mt-4 rounded-lg border border-coral-100 bg-coral-50 px-3 py-2 text-sm text-coral-600" role="alert">{error}</p>}
         </section>
 
+        {reviewMode && (
+          <div className="mt-5 rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm text-teal-700" role="status">
+            <p className="font-semibold">Read-only review</p>
+            <p className="mt-1 text-xs leading-5">This view is hydrated from the stored session record. It does not open a live connection or restart the source.</p>
+          </div>
+        )}
+        <div className="mt-5"><SessionHistory sessions={sessionCatalog} currentSessionId={session?.sessionId} busy={busy} onOpen={openReview} /></div>
         <div className="mt-5"><StatusSummary liveState={liveState} /></div>
 
         <section className="mt-5 grid gap-4 lg:grid-cols-3" aria-label="Live signal cards">
@@ -650,7 +758,7 @@ export default function App() {
         </section>
 
         <section className="mt-5 grid gap-5 lg:grid-cols-[1.45fr_0.85fr]">
-          <div className="panel p-5"><Chart samples={liveState.samples} durationSec={Number(config.durationSec) || 1} /></div>
+          <div className="panel p-5"><Chart samples={liveState.samples} durationSec={displayDuration} /></div>
           <WhatIsHappening liveState={liveState} report={report} />
         </section>
 

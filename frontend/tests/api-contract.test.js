@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLiveSession, listLiveSessions } from "../src/api.js";
+import { createLiveSession, getLiveReplay, listLiveSessions } from "../src/api.js";
 
 describe("live API contract", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -51,5 +51,17 @@ describe("live API contract", () => {
 
     await expect(listLiveSessions(25)).resolves.toEqual(catalog);
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/live/sessions?limit=25", expect.anything());
+  });
+
+  it("reads persisted samples through the replay contract", async () => {
+    const replay = { sessionId: "session/review", sourceType: "replay", sampleCount: 1, samples: [] };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      headers: { get: () => "application/json" },
+      json: async () => replay,
+    });
+
+    await expect(getLiveReplay("session/review")).resolves.toEqual(replay);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/live/sessions/session%2Freview/replay", expect.anything());
   });
 });

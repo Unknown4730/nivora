@@ -39,6 +39,22 @@ export function mergeSnapshot(state, snapshot) {
   };
 }
 
+export function mergeReviewArtifacts(state, session, report, failures, replay) {
+  const samples = Array.isArray(replay?.samples) ? replay.samples : [];
+  return {
+    ...state,
+    snapshot: session,
+    sessionState: session?.state || report?.state || "stopped",
+    connection: "closed",
+    latestSample: samples.at(-1) || null,
+    samples,
+    failures: Array.isArray(failures?.failures) ? failures.failures : [],
+    metrics: report?.metrics || session?.metrics || {},
+    sourceComplete: Boolean(report?.metrics?.sourceComplete),
+    technicalEvents: [],
+  };
+}
+
 export function reduceLiveEvent(state, event) {
   if (!event || typeof event !== "object") return state;
   const payload = event.payload || {};

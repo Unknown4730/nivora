@@ -16,6 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 from fastapi.testclient import TestClient  # noqa: E402
 
 from aura_med.api.main import app  # noqa: E402
+from aura_med.api import live_routes  # noqa: E402
 from aura_med.live.export import build_export_zip  # noqa: E402
 from aura_med.live.failures import FailureDetector, FailureLedger  # noqa: E402
 from aura_med.live.models import FailureType, LiveSample  # noqa: E402
@@ -168,6 +169,65 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("sessions", response.json())
         self.assertIsInstance(response.json()["sessions"], list)
+
+    def test_completed_session_is_readable_after_manager_restart(self) -> None:
+        data_dir = pathlib.Path(tempfile.mkdtemp())
+        first = SessionManager(SQLiteRecorder(data_dir=data_dir))
+        first.create_session(
+            session_id="restart-review",
+            duration_sec=2,
+            sample_rate_hz=2,
+            faults=[{"type": "packet_loss", "atSamples": [1]}],
+            no_wait=True,
+        )
+
+        async def flow() -> None:
+            await first.start("restart-review")
+
+        asyncio.run(flow())
+        expected_samples = first.get_samples("restart-review")
+        first.recorder.close()
+
+        second = SessionManager(SQLiteRecorder(data_dir=data_dir))
+        self.assertFalse(second.has_active_session("restart-review"))
+        self.assertTrue(second.has_readable_session("restart-review"))
+        self.assertEqual(second.get_session("restart-review")["historical"], True)
+        self.assertEqual(len(second.get_samples("restart-review")), len(expected_samples))
+        self.assertGreaterEqual(len(second.get_failures("restart-review")), 1)
+        self.assertEqual(second.get_report("restart-review")["state"], "stopped")
+        self.assertEqual(len(second.replay("restart-review").samples()), len(expected_samples))
+        self.assertIn("report", second.export_data("restart-review"))
+        second.recorder.close()
+
+    def test_restarted_api_exposes_review_reads_but_not_lifecycle_mutations(self) -> None:
+        data_dir = pathlib.Path(tempfile.mkdtemp())
+        first = SessionManager(SQLiteRecorder(data_dir=data_dir))
+        first.create_session(session_id="api-restart-review", duration_sec=1, sample_rate_hz=2, no_wait=True)
+
+        async def flow() -> None:
+            await first.start("api-restart-review")
+
+        asyncio.run(flow())
+        first.recorder.close()
+        second = SessionManager(SQLiteRecorder(data_dir=data_dir))
+        original_manager = live_routes.live_manager
+        live_routes.live_manager = second
+        try:
+            client = TestClient(app)
+            prefix = "/api/v1/live/sessions/api-restart-review"
+            self.assertEqual(client.get(prefix).status_code, 200)
+            self.assertEqual(client.get(f"{prefix}/report").status_code, 200)
+            self.assertEqual(client.get(f"{prefix}/failures").status_code, 200)
+            self.assertEqual(client.get(f"{prefix}/replay").status_code, 200)
+            self.assertEqual(client.get(f"{prefix}/samples.csv").status_code, 200)
+            self.assertEqual(client.get(f"{prefix}/failures.csv").status_code, 200)
+            self.assertEqual(client.get(f"{prefix}/export.zip").status_code, 200)
+            self.assertEqual(client.post(f"{prefix}/start").status_code, 404)
+            self.assertEqual(client.post(f"{prefix}/stop").status_code, 404)
+            self.assertEqual(client.post(f"{prefix}/faults", json={"type": "packet_loss", "atSamples": [1]}).status_code, 404)
+        finally:
+            live_routes.live_manager = original_manager
+            second.recorder.close()
 
     def test_bounded_thousands_sample_stress(self) -> None:
         recorder = SQLiteRecorder(data_dir=pathlib.Path(tempfile.mkdtemp()))

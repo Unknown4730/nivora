@@ -5,6 +5,7 @@ import {
   channelTrust,
   channelValue,
   initialLiveState,
+  mergeReviewArtifacts,
   reduceLiveEvent,
   statusCopy,
 } from "../src/sessionModel.js";
@@ -66,5 +67,26 @@ describe("live session event contract", () => {
     expect(channelTrend(state.latestSample, "spo2")).toBe("Not supplied by live stream");
     expect(channelTrust(state.latestSample, "spo2")).toBe("Not supplied");
     expect(statusCopy(state).label).toBe("Ready to begin");
+  });
+
+  it("hydrates a read-only review from persisted report, failures, and replay samples", () => {
+    const samples = [
+      { sampleId: "sample-1", relativeTimeSec: 0, values: { spo2: 97 }, qualityFlags: [] },
+      { sampleId: "sample-2", relativeTimeSec: 1, values: { spo2: 96 }, qualityFlags: ["missing"] },
+    ];
+    const state = mergeReviewArtifacts(
+      initialLiveState,
+      { sessionId: "historical-1", state: "stopped", durationSec: 2 },
+      { state: "stopped", metrics: { received: 2, missing: 1 } },
+      { failures: [{ failureId: "failure-1", type: "packet_loss" }] },
+      { sourceType: "replay", samples },
+    );
+
+    expect(state.connection).toBe("closed");
+    expect(state.samples).toEqual(samples);
+    expect(state.latestSample).toEqual(samples[1]);
+    expect(state.failures).toHaveLength(1);
+    expect(state.metrics).toEqual({ received: 2, missing: 1 });
+    expect(channelTrust(state.latestSample, "spo2")).toBe("Not supplied");
   });
 });

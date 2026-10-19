@@ -68,6 +68,18 @@ class SessionManager:
             raise KeyError(session_id)
         return session
 
+    def has_active_session(self, session_id: str) -> bool:
+        return session_id in self._sessions
+
+    def has_readable_session(self, session_id: str) -> bool:
+        return self.has_active_session(session_id) or self.recorder.get_session(session_id) is not None
+
+    def _stored_metadata(self, session_id: str) -> dict[str, Any]:
+        metadata = self.recorder.get_session(session_id)
+        if metadata is None:
+            raise KeyError(session_id)
+        return metadata
+
     def create_session(
         self,
         *,
@@ -470,15 +482,55 @@ class SessionManager:
         }
 
     def get_report(self, session_id: str) -> dict[str, Any]:
-        session = self._session(session_id)
-        return SessionReport.model_validate(self._report_payload(session)).to_dict()
+        session = self._sessions.get(session_id)
+        if session is not None:
+            return SessionReport.model_validate(self._report_payload(session)).to_dict()
+        metadata = self._stored_metadata(session_id)
+        persisted = self.recorder.get_latest_summary(session_id)
+        if persisted is not None:
+            return SessionReport.model_validate(persisted).to_dict()
+        failures = self.recorder.get_failures(session_id)
+        samples = self.recorder.get_samples(session_id)
+        metrics = {
+            "expected": round(float(metadata.get("durationSec", 0)) * float(metadata.get("sampleRateHz", 0))),
+            "received": len(samples),
+            "missing": 0,
+            "duplicates": 0,
+            "outOfOrder": 0,
+            "disconnects": 0,
+            "reconnects": 0,
+            "sourceComplete": False,
+        }
+        report = {
+            "sessionId": session_id,
+            "state": metadata.get("state", SessionState.FAILED.value),
+            "summary": "This recorded session does not have a finalized summary; review the stored evidence before using it.",
+            "technicalSummary": f"Received {len(samples)} samples; {len(failures)} failure records are stored.",
+            "metrics": metrics,
+            "reviewFlags": ["summary-not-finalized"],
+            "failureCount": len(failures),
+        }
+        return SessionReport.model_validate(report).to_dict()
 
     def get_failures(self, session_id: str) -> list[dict[str, Any]]:
-        self._session(session_id)
+        self._stored_metadata(session_id)
         return [failure.to_dict() for failure in self.recorder.get_failures(session_id)]
 
     def get_session(self, session_id: str) -> dict[str, Any]:
-        session = self._session(session_id)
+        session = self._sessions.get(session_id)
+        if session is None:
+            metadata = self._stored_metadata(session_id)
+            report = self.recorder.get_latest_summary(session_id)
+            payload = dict(metadata)
+            payload.update({
+                "state": metadata.get("state", "stopped"),
+                "metrics": (report or {}).get("metrics", {}),
+                "hotCacheSize": 0,
+                "hotCacheLimit": self.max_hot_samples,
+                "failureCount": self.recorder.count("failures", session_id),
+                "historical": True,
+            })
+            return payload
         payload = dict(session.metadata)
         payload.update({"state": session.state.value, "metrics": self._metrics(session)})
         payload["hotCacheSize"] = len(session.hot_samples)
@@ -492,21 +544,22 @@ class SessionManager:
         return self.recorder.list_sessions(limit)
 
     def get_samples(self, session_id: str) -> list[LiveSample]:
-        self._session(session_id)
+        self._stored_metadata(session_id)
         return self.recorder.get_samples(session_id)
 
     def replay(self, session_id: str, *, no_wait: bool = True, speed: float = 1.0) -> ReplaySource:
-        self._session(session_id)
+        self._stored_metadata(session_id)
         return ReplaySource(self.recorder.get_samples(session_id), no_wait=no_wait, speed=speed)
 
     def export_data(self, session_id: str) -> dict[str, Any]:
-        session = self._session(session_id)
+        session = self._sessions.get(session_id)
+        metadata = session.metadata if session is not None else self._stored_metadata(session_id)
         normalized_samples = self.get_samples(session_id)
         return {
             "manifest": {
                 "schemaVersion": "2.0",
                 "sessionId": session_id,
-                "sourceType": session.metadata.get("sourceType", "virtual"),
+                "sourceType": metadata.get("sourceType", "virtual"),
                 "recordedAt": time.time(),
                 "files": [
                     "manifest.json",
@@ -523,11 +576,11 @@ class SessionManager:
                     "checksums.json",
                 ],
             },
-            "metadata": session.metadata,
+            "metadata": metadata,
             "sensorMetadata": {
-                "sensorId": session.sensor_id,
-                "streamId": session.stream_id,
-                "sourceType": session.metadata.get("sourceType", "virtual"),
+                "sensorId": metadata.get("sensorId", ""),
+                "streamId": metadata.get("streamId", ""),
+                "sourceType": metadata.get("sourceType", "virtual"),
                 "units": normalized_samples[0].units if normalized_samples else {},
             },
             "report": self.get_report(session_id),

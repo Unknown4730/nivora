@@ -268,5 +268,15 @@ class SQLiteRecorder:
         with self._lock:
             self._connection.close()
 
+    # Small verb aliases keep the recorder convenient for adapters without
+    # duplicating any write/read behavior.
+    write_raw = record_raw
+    write_sample = record_sample
+    write_failure = record_failure
+    write_event = record_event
+    read_samples = get_samples
+    read_failures = get_failures
+    read_events = get_events
+
 
 __all__ = ["SQLiteRecorder", "StorageError", "default_data_dir", "default_db_path"]

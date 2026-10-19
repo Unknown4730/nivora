@@ -45,6 +45,9 @@ class FailureLedger:
         values = list(self._hot)
         return [item for item in values if session_id is None or item.session_id == session_id]
 
+    record = append
+    get_all = list
+
 
 class FailureDetector:
     """Detect transport, timing, quality, and processing failures."""

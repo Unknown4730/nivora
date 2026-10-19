@@ -71,6 +71,7 @@ class VirtualSource:
         artifact_intensity: float = 0.48,
         faults: Iterable[FaultSpec | dict[str, Any] | str] | Mapping[str, Any] | None = None,
         fault_injection: Iterable[FaultSpec | dict[str, Any] | str] | Mapping[str, Any] | None = None,
+        fault_injections: Iterable[FaultSpec | dict[str, Any] | str] | Mapping[str, Any] | None = None,
         no_wait: bool = True,
     ) -> None:
         if not session_id or not stream_id or not sensor_id:
@@ -93,6 +94,7 @@ class VirtualSource:
         self.no_wait = bool(no_wait)
         self._faults: list[FaultSpec] = _fault_list(faults)
         self._faults.extend(_fault_list(fault_injection))
+        self._faults.extend(_fault_list(fault_injections))
         self._cancelled = False
 
     @property
@@ -240,18 +242,20 @@ class VirtualSource:
                     index += 1
             prepared = swapped
 
+        disconnect_ranges: list[tuple[int, int]] = []
+        for missing_index in sorted(disconnect_indices):
+            if not disconnect_ranges or missing_index > disconnect_ranges[-1][1] + 1:
+                disconnect_ranges.append((missing_index, missing_index))
+            else:
+                disconnect_ranges[-1] = (disconnect_ranges[-1][0], missing_index)
         result: list[SourceItem] = []
-        disconnect_reported = False
-        reconnect_reported = False
+        range_index = 0
         for index, sample in prepared:
-            if disconnect_indices and any(missing < index for missing in disconnect_indices):
-                first_missing = min(missing for missing in disconnect_indices if missing < index)
-                if not disconnect_reported:
-                    result.append(SourceItem("event", event_type="disconnect", payload={"sequenceNumber": first_missing}))
-                    disconnect_reported = True
-                if not reconnect_reported:
-                    result.append(SourceItem("event", event_type="reconnect", payload={"sequenceNumber": index}))
-                    reconnect_reported = True
+            while range_index < len(disconnect_ranges) and index > disconnect_ranges[range_index][1]:
+                first_missing, _ = disconnect_ranges[range_index]
+                result.append(SourceItem("event", event_type="disconnect", payload={"sequenceNumber": first_missing}))
+                result.append(SourceItem("event", event_type="reconnect", payload={"sequenceNumber": index}))
+                range_index += 1
             result.append(SourceItem("sample", sample=sample))
             if any(self._fault_applies(fault, index, randomizer) for fault in duplicates):
                 duplicate = sample.model_copy(
@@ -259,11 +263,10 @@ class VirtualSource:
                 )
                 result.append(SourceItem("sample", sample=duplicate))
         # A disconnect extending to the end is still explicit for reports.
-        if disconnect_indices and not disconnect_reported:
-            first_missing = min(disconnect_indices)
+        while range_index < len(disconnect_ranges):
+            first_missing, _ = disconnect_ranges[range_index]
             result.append(SourceItem("event", event_type="disconnect", payload={"sequenceNumber": first_missing, "atEnd": True}))
-        elif disconnect_indices and not reconnect_reported:
-            result.append(SourceItem("event", event_type="disconnect", payload={"atEnd": True}))
+            range_index += 1
         return result
 
     def items(self) -> list[SourceItem]:
@@ -295,6 +298,9 @@ class VirtualSource:
                 yield item.sample
 
     def __iter__(self):
+        return iter(self.samples())
+
+    def iter_samples(self):
         return iter(self.samples())
 
 

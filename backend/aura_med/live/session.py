@@ -528,5 +528,9 @@ class SessionManager:
     def clear_process_sessions(self) -> None:
         self._sessions.clear()
 
+    create = create_session
+    start_session = start
+    stop_session = stop
+
 
 __all__ = ["SessionManager"]

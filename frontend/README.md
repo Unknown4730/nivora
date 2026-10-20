@@ -1,4 +1,4 @@
-# AURA-Med Live frontend
+# Nivora Live frontend
 
 This directory contains the Phase 2 React + Tailwind single-page dashboard.
 It talks to the FastAPI live API under `/api/v1/live` and subscribes to

@@ -21,4 +21,4 @@ createServer(async (request, response) => {
   } catch {
     response.writeHead(404); response.end('Not found');
   }
-}).listen(port, '0.0.0.0', () => console.log(`AURA-Med Lab serving on http://localhost:${port}`));
+}).listen(port, '0.0.0.0', () => console.log(`Nivora Lab serving on http://localhost:${port}`));

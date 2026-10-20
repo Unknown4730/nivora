@@ -1,4 +1,4 @@
-"""HTTP API for the AURA-Med backend."""
+"""HTTP API for the Nivora backend."""
 
 from .main import app
 

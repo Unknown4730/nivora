@@ -1,6 +1,6 @@
-# AURA-Med Signal Reliability Workbench
+# Nivora
 
-AURA-Med is a local-first research and algorithm-validation workbench for
+Nivora is a local-first research and algorithm-validation workbench for
 reliability-aware interpretation of noisy physiological time-series data.
 
 The current phase delivers a Python processing backend and a versioned FastAPI
@@ -35,7 +35,7 @@ keeps technical details expandable, and provides session report exports.
 
 ```text
 backend/
-  aura_med/
+  aura_med/                 # Internal Python package name retained for compatibility
     api/
       main.py       # FastAPI application and service endpoints
       routes.py     # Versioned simulation, catalog, and export routes
@@ -99,8 +99,8 @@ py -3.12 -m venv .venv
 ### Linux/macOS
 
 ```bash
-git clone <repository-url> aura-med
-cd aura-med
+git clone <repository-url> nivora
+cd nivora
 python3.12 -m venv .venv
 .venv/bin/python -m pip install --requirement requirements.lock
 npm --prefix frontend ci
@@ -324,7 +324,7 @@ docker build --tag aura-med:local .
 docker volume create aura-med-data
 docker run --rm --publish 8000:8000 \
   --volume aura-med-data:/app/.runtime \
-  aura-med:local
+  nivora:local
 ```
 
 The multi-stage image installs the pinned Python and Node dependencies, builds

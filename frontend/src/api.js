@@ -30,7 +30,7 @@ async function request(path, options = {}) {
       },
     });
   } catch (error) {
-    throw new ApiError("The AURA-Med API could not be reached.", 0, { cause: error });
+    throw new ApiError("The Nivora API could not be reached.", 0, { cause: error });
   }
 
   const contentType = response.headers.get("content-type") || "";

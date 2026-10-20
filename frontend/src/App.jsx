@@ -734,7 +734,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 font-semibold text-white shadow-sm" aria-hidden="true">A</span>
             <div>
-              <p className="text-sm font-bold tracking-[-0.03em] text-ink">AURA-Med</p>
+              <p className="text-sm font-bold tracking-[-0.03em] text-ink">Nivora</p>
               <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-quiet">Live reliability lab</p>
             </div>
           </div>

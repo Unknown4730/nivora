@@ -1,4 +1,4 @@
-"""Dataclasses shared by the AURA-Med domain modules.
+"""Dataclasses shared by the Nivora domain modules.
 
 The Python attributes use snake_case.  :meth:`SimulationRun.to_dict` emits the
 camelCase schema used by the original local-first engine, so the API layer can

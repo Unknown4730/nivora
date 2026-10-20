@@ -68,7 +68,7 @@ class ApiTests(unittest.TestCase):
         health = self.client.get("/health")
         self.assertEqual(health.status_code, 200)
         self.assertEqual(health.json()["status"], "ok")
-        self.assertEqual(self.client.get("/").json()["service"], "aura-med-backend")
+        self.assertEqual(self.client.get("/").json()["service"], "nivora-backend")
 
     def test_scenario_catalog_exposes_all_domain_scenarios(self) -> None:
         response = self.client.get("/api/v1/scenarios")

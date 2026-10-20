@@ -1,4 +1,4 @@
-"""AURA-Med backend packages."""
+"""Nivora backend packages."""
 
 __version__ = "0.2.0"
 

@@ -1,5 +1,5 @@
 /*
- * AURA-Med Lab browser adapter.
+ * Nivora Lab browser adapter.
  *
  * The visual layer consumes the shared SimulationRun returned by the
  * dependency-free domain pipeline. It does not recalculate quality, trust,
@@ -19,7 +19,7 @@ const CHANNELS = {
 const CHANNEL_IDS = Object.keys(CHANNELS);
 const ALGORITHM_LABELS = {
   "threshold-baseline": "THRESHOLD BASELINE",
-  "reliability-aware": "AURA-MED",
+  "reliability-aware": "NIVORA",
 };
 const SCENARIO_HELP = {
   clean: "Mostly stable simulated signals with small deterministic variation.",
@@ -180,7 +180,7 @@ function renderInterpretation(run, evidence, result) {
   const classification = prediction?.classification || "normal";
   const kind = classificationKind(classification);
   block.className = `classification-block ${kind === "alert" ? "alert" : kind === "uncertain" ? "uncertain" : state.run ? "" : "empty"}`;
-  $("active-algorithm").textContent = ALGORITHM_LABELS[result?.algorithmId] || "AURA-MED";
+  $("active-algorithm").textContent = ALGORITHM_LABELS[result?.algorithmId] || "NIVORA";
   $("classification-state").textContent = state.run ? classificationLabel(classification) : "Awaiting run";
   $("classification-confidence").textContent = prediction ? `${percent(prediction.confidence)} algorithmic confidence` : "—";
   $("classification-summary").textContent = !state.run

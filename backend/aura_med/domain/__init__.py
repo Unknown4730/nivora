@@ -1,4 +1,4 @@
-"""Deterministic, local-first AURA-Med simulation domain."""
+"""Deterministic, local-first Nivora simulation domain."""
 
 from .algorithms import (
     algorithms_for,

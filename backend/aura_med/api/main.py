@@ -1,4 +1,4 @@
-"""FastAPI application entry point for the AURA-Med backend."""
+"""FastAPI application entry point for the Nivora backend."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .live_routes import router as live_router
 from .schemas import ServiceInfo
 
 
-SERVICE_NAME = "aura-med-backend"
+SERVICE_NAME = "nivora-backend"
 SERVICE_VERSION = "0.2.0"
 
 
@@ -26,7 +26,7 @@ def _cors_origins() -> list[str]:
 
 
 app = FastAPI(
-    title="AURA-Med Signal Reliability Backend",
+    title="Nivora Signal Reliability Backend",
     description=(
         "Deterministic, local-first research backend for simulated physiological "
         "signal reliability experiments."

@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AURA-Med Lab is a local-first research prototype for exploring reliability-aware interpretation of simulated physiological time-series data.">
-  <title>AURA-Med Lab · Signal reliability research</title>
+  <meta name="description" content="Nivora Lab is a local-first research prototype for exploring reliability-aware interpretation of simulated physiological time-series data.">
+  <title>Nivora Lab · Signal reliability research</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#top" aria-label="AURA-Med Lab home">
+      <a class="brand" href="#top" aria-label="Nivora Lab home">
         <span class="brand-mark" aria-hidden="true">✦</span>
-        <span>AURA-Med <b>Lab</b></span>
+        <span>Nivora <b>Lab</b></span>
       </a>
       <div class="topbar-status">
         <span class="status-pill"><span class="status-dot" aria-hidden="true"></span>Local simulation</span>
@@ -66,7 +66,7 @@
           </label>
           <label class="control-field">Algorithm view
             <select id="algorithm">
-              <option value="reliability-aware">AURA-Med reliability-aware</option>
+              <option value="reliability-aware">Nivora reliability-aware</option>
               <option value="threshold-baseline">Threshold baseline</option>
               <option value="both">Compare both algorithms</option>
             </select>
@@ -198,7 +198,7 @@
             <thead><tr><th scope="col">Algorithm</th><th scope="col">Nuisance alerts</th><th scope="col">Missed simulated events</th><th scope="col">Detection latency</th><th scope="col">Uncertain time</th><th scope="col">Interpretation</th></tr></thead>
             <tbody>
               <tr id="baseline-row"><th scope="row"><span class="table-algo baseline-text">Threshold baseline</span><small>Value-only comparison arm</small></th><td id="base-alerts">—</td><td id="base-missed">—</td><td id="base-latency">—</td><td id="base-uncertain">—</td><td><span class="table-note">Fixed threshold; does not use trust.</span></td></tr>
-              <tr id="aware-row"><th scope="row"><span class="table-algo aware-text">AURA-Med reliability-aware</span><small>Trust + trend + agreement</small></th><td id="aware-alerts">—</td><td id="aware-missed">—</td><td id="aware-latency">—</td><td id="aware-uncertain">—</td><td><span class="table-note">Can return uncertain when evidence conflicts.</span></td></tr>
+              <tr id="aware-row"><th scope="row"><span class="table-algo aware-text">Nivora reliability-aware</span><small>Trust + trend + agreement</small></th><td id="aware-alerts">—</td><td id="aware-missed">—</td><td id="aware-latency">—</td><td id="aware-uncertain">—</td><td><span class="table-note">Can return uncertain when evidence conflicts.</span></td></tr>
             </tbody>
           </table>
         </div>
@@ -216,7 +216,7 @@
     </main>
 
     <footer>
-      <span>AURA-Med Lab <b>·</b> Open research prototype</span>
+      <span>Nivora Lab <b>·</b> Open research prototype</span>
       <span>Browser-local simulation <b>·</b> No external APIs <b>·</b> Not for clinical use</span>
     </footer>
   </div>

@@ -24,7 +24,7 @@ function portIsAvailable(port) {
 }
 
 if (!(await portIsAvailable(backendPort))) {
-  console.error(`Port ${backendPort} is already in use. Stop the existing AURA-Med backend, then run npm run dev again.`);
+  console.error(`Port ${backendPort} is already in use. Stop the existing Nivora backend, then run npm run dev again.`);
   console.error(isWindows ? "PowerShell: Get-NetTCPConnection -LocalPort 8000 | Select-Object OwningProcess" : "Linux/macOS: lsof -i :8000");
   process.exit(1);
 }
@@ -62,8 +62,8 @@ function shutdown(code = 0) {
 process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
-console.log("Starting AURA-Med backend at http://127.0.0.1:8000");
-console.log("Starting AURA-Med frontend at http://localhost:5173");
+console.log("Starting Nivora backend at http://127.0.0.1:8000");
+console.log("Starting Nivora frontend at http://localhost:5173");
 console.log("Press Ctrl+C once to stop both processes.");
 
 command(python, ["-m", "uvicorn", "aura_med.api.main:app", "--host", "127.0.0.1", "--port", "8000"]);

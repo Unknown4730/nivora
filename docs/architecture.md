@@ -1,4 +1,4 @@
-# AURA-Med backend architecture
+# Nivora backend architecture
 
 ## Boundary
 
